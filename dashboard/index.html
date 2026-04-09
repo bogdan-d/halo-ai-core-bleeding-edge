@@ -107,6 +107,44 @@
 
     .footer { font-size:.7rem;color:var(--text-muted);text-align:center; }
 
+    /* ── Image/Video Gen Panel ── */
+    .gen-wrap { width:100%;max-width:1000px;margin-bottom:1.5rem; }
+    .gen-panel {
+      border:1px solid var(--border);border-radius:12px;padding:1.25rem;
+      overflow:hidden;
+    }
+    .gen-header { display:flex;align-items:center;gap:.6rem;margin-bottom:.75rem; }
+    .gen-title { font-size:1rem;font-weight:700; }
+    .gen-tabs { display:flex;gap:.4rem;margin-left:auto; }
+    .gen-tab {
+      font-size:.55rem;padding:.2rem .6rem;border-radius:4px;border:1px solid var(--border);
+      color:var(--text-muted);cursor:pointer;text-transform:uppercase;letter-spacing:.06em;
+      background:transparent;font-family:inherit;transition:all .2s;
+    }
+    .gen-tab.active { border-color:var(--accent);color:var(--accent); }
+    .gen-tab:hover { border-color:var(--accent);color:var(--text); }
+    .gen-form { display:flex;gap:.5rem;margin-bottom:.75rem; }
+    .gen-prompt {
+      flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;
+      padding:.5rem .75rem;color:var(--text);font-size:.75rem;font-family:inherit;
+      outline:none;transition:border-color .2s;
+    }
+    .gen-prompt:focus { border-color:var(--accent); }
+    .gen-btn {
+      padding:.5rem 1rem;border-radius:6px;border:1px solid var(--accent);
+      background:transparent;color:var(--accent);font-size:.7rem;cursor:pointer;
+      font-family:inherit;transition:all .2s;white-space:nowrap;
+    }
+    .gen-btn:hover { background:var(--accent);color:#fff; }
+    .gen-btn:disabled { opacity:.4;cursor:not-allowed; }
+    .gen-output {
+      min-height:100px;border-radius:8px;background:var(--bg);border:1px solid var(--border);
+      display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;
+    }
+    .gen-output img,.gen-output video { max-width:100%;max-height:400px;display:block;margin:auto; }
+    .gen-placeholder { color:var(--text-muted);font-size:.7rem; }
+    .gen-status { font-size:.6rem;color:var(--text-dim);margin-top:.5rem;text-align:center; }
+
     /* ── Terminal ── */
     .term-wrap { width:100%;max-width:1000px;margin-bottom:2rem; }
     .term {
@@ -208,6 +246,27 @@
         <div class="list-sections mono" id="gaia-agents"><div style="text-align:center;color:var(--text-muted);font-size:.6rem;grid-column:1/-1">loading agents...</div></div>
         <div class="card-hint mono">click to open Gaia &rarr;</div>
       </a>
+    </div>
+
+    <!-- Image / Video Gen -->
+    <div class="gen-wrap">
+      <div class="gen-panel svc-card">
+        <div class="gen-header">
+          <span class="gen-title">Create</span>
+          <div class="gen-tabs mono">
+            <button class="gen-tab active" data-mode="image">Image</button>
+            <button class="gen-tab" data-mode="video">Video</button>
+          </div>
+        </div>
+        <div class="gen-form">
+          <input class="gen-prompt mono" id="gen-prompt" type="text" placeholder="describe what you want to see..." autocomplete="off" spellcheck="false">
+          <button class="gen-btn mono" id="gen-go">Generate</button>
+        </div>
+        <div class="gen-output" id="gen-output">
+          <span class="gen-placeholder mono">your creation appears here</span>
+        </div>
+        <div class="gen-status mono" id="gen-status"></div>
+      </div>
     </div>
 
     <!-- Terminal -->
@@ -365,6 +424,119 @@
     ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open')})
     document.querySelectorAll('.opt-btn').forEach(b=>b.addEventListener('click',()=>as(b.closest('[data-setting]').dataset.setting,b.dataset.value)))
     aw()
+
+    // ── Image / Video Generation ──
+    let genMode = 'image'
+    const genPrompt = document.getElementById('gen-prompt')
+    const genBtn = document.getElementById('gen-go')
+    const genOut = document.getElementById('gen-output')
+    const genStatus = document.getElementById('gen-status')
+
+    document.querySelectorAll('.gen-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.gen-tab').forEach(t => t.classList.remove('active'))
+        tab.classList.add('active')
+        genMode = tab.dataset.mode
+        genPrompt.placeholder = genMode === 'image'
+          ? 'describe what you want to see...'
+          : 'describe the video you want to create...'
+      })
+    })
+
+    async function generateImage(prompt) {
+      genBtn.disabled = true
+      genStatus.textContent = 'generating...'
+      genOut.innerHTML = '<span class="gen-placeholder mono">creating...</span>'
+
+      try {
+        const body = {
+          prompt: prompt,
+          model: 'SD-Turbo',
+          n: 1,
+          size: '512x512',
+          response_format: 'b64_json'
+        }
+
+        const r = await fetch(`http://${H}:13306/v1/images/generations`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(120000)
+        })
+
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        const d = await r.json()
+
+        if (d.data && d.data[0]) {
+          const b64 = d.data[0].b64_json
+          genOut.innerHTML = `<img src="data:image/png;base64,${b64}" alt="${prompt}">`
+          genStatus.textContent = `generated with ${body.model} — ${body.size}`
+        } else {
+          throw new Error('no image data returned')
+        }
+      } catch (e) {
+        genOut.innerHTML = `<span class="gen-placeholder mono" style="color:var(--accent)">error: ${e.message}</span>`
+        genStatus.textContent = 'generation failed — is Lemonade running with an image model loaded?'
+      }
+      genBtn.disabled = false
+    }
+
+    async function generateVideo(prompt) {
+      genBtn.disabled = true
+      genStatus.textContent = 'video generation coming soon — using image sequence for now...'
+      genOut.innerHTML = '<span class="gen-placeholder mono">creating frames...</span>'
+
+      // Generate a sequence of images as frames
+      try {
+        const frames = []
+        for (let i = 0; i < 4; i++) {
+          const body = {
+            prompt: `${prompt}, frame ${i+1} of 4, cinematic`,
+            model: 'SD-Turbo',
+            n: 1,
+            size: '512x512',
+            response_format: 'b64_json'
+          }
+          genStatus.textContent = `generating frame ${i+1}/4...`
+          const r = await fetch(`http://${H}:13306/v1/images/generations`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+            signal: AbortSignal.timeout(120000)
+          })
+          if (!r.ok) throw new Error(`HTTP ${r.status}`)
+          const d = await r.json()
+          if (d.data && d.data[0]) frames.push(d.data[0].b64_json)
+        }
+
+        // Animate frames
+        if (frames.length > 0) {
+          let idx = 0
+          genOut.innerHTML = `<img id="gen-anim" src="data:image/png;base64,${frames[0]}" alt="${prompt}">`
+          const animImg = document.getElementById('gen-anim')
+          setInterval(() => {
+            idx = (idx + 1) % frames.length
+            animImg.src = `data:image/png;base64,${frames[idx]}`
+          }, 500)
+          genStatus.textContent = `${frames.length} frames generated — animating at 2fps`
+        }
+      } catch (e) {
+        genOut.innerHTML = `<span class="gen-placeholder mono" style="color:var(--accent)">error: ${e.message}</span>`
+        genStatus.textContent = 'generation failed'
+      }
+      genBtn.disabled = false
+    }
+
+    genBtn.addEventListener('click', () => {
+      const prompt = genPrompt.value.trim()
+      if (!prompt) return
+      if (genMode === 'image') generateImage(prompt)
+      else generateVideo(prompt)
+    })
+
+    genPrompt.addEventListener('keydown', e => {
+      if (e.key === 'Enter') genBtn.click()
+    })
 
     // ── Terminal ──
     const termOut = document.getElementById('term-output')
