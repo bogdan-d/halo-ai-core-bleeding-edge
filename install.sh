@@ -6,7 +6,7 @@
 # "I know kung fu." — Neo, The Matrix
 #
 # Core services for AMD Strix Halo bare-metal AI platform
-# Components: ROCm, Caddy, llama.cpp, Lemonade SDK, Gaia SDK, Claude Code
+# Components: ROCm, Caddy, vLLM ROCm, Lemonade SDK, Gaia SDK, Claude Code
 # ============================================================
 set -euo pipefail
 
@@ -49,7 +49,7 @@ usage() {
     echo "  --yes-all       Skip all confirmation prompts"
     echo "  --skip-rocm     Skip ROCm installation"
     echo "  --skip-caddy    Skip Caddy installation"
-    echo "  --skip-llama    Skip llama.cpp build"
+    echo "  --skip-llama    Skip vLLM ROCm download"
     echo "  --skip-lemonade Skip Lemonade SDK"
     echo "  --skip-gaia     Skip Gaia SDK"
     echo "  --skip-claude   Skip Claude Code"
@@ -152,12 +152,12 @@ check_status() {
         echo -e "  Caddy:    ${RED}not installed${NC}"
     fi
 
-    # llama.cpp
-    if [ -f /usr/local/bin/llama-server ]; then
-        VER=$(/usr/local/bin/llama-server --version 2>&1 | grep version | head -1)
-        echo -e "  llama.cpp: ${GREEN}installed${NC} — $VER"
+    # vLLM ROCm
+    if [ -f "$HOME/vllm-rocm/bin/python3" ]; then
+        VER=$("$HOME/vllm-rocm/bin/python3" -c 'import vllm; print(vllm.__version__)' 2>/dev/null || echo "unknown")
+        echo -e "  vLLM ROCm: ${GREEN}installed${NC} — v$VER"
     else
-        echo -e "  llama.cpp: ${RED}not installed${NC}"
+        echo -e "  vLLM ROCm: ${RED}not installed${NC}"
     fi
 
     # Lemonade
@@ -186,7 +186,7 @@ check_status() {
     # Services
     echo ""
     echo "  Services:"
-    for svc in caddy sshd llama-server lemonade-server gaia-ui gaia; do
+    for svc in caddy sshd vllm-server lemonade-server gaia-ui gaia; do
         STATUS=$(systemctl is-enabled "$svc" 2>/dev/null || echo "missing")
         ACTIVE=$(systemctl is-active "$svc" 2>/dev/null || true); ACTIVE=${ACTIVE:-inactive}
         if [ "$STATUS" = "enabled" ]; then
@@ -267,7 +267,7 @@ fi
 # 1. BASE PACKAGES
 # ============================================================
 step "Base Packages"
-BASE_PKGS="base-devel git openssh networkmanager curl wget htop nano cmake make nodejs npm"
+BASE_PKGS="base-devel git openssh networkmanager curl wget htop nano nodejs npm github-cli"
 
 if $DRY_RUN; then
     info "Would install: $BASE_PKGS"
@@ -361,7 +361,7 @@ h1{font-size:2em;margin-bottom:0.3em;color:#00d4ff}
 small{display:block;margin-top:1.5em;color:#333}
 </style></head><body><div class="box">
 <h1>halo-ai core</h1>
-<p class="sub">lemonade + gaia + llama.cpp — fully integrated</p>
+<p class="sub">lemonade + gaia + vllm — fully integrated</p>
 <div class="grid">
 <a class="btn" target="_blank" href="http://{http.request.host}:13306">lemonade<small>chat with llms — :13306</small></a>
 <a class="btn" target="_blank" href="http://{http.request.host}:4201">gaia agents<small>manage ai agents — :4201</small></a>
@@ -425,107 +425,83 @@ fi
 PYTHON_BIN="$HOME/.pyenv/versions/${PYTHON_VERSION}/bin/python3"
 
 # ============================================================
-# 5. LLAMA.CPP
+# 5. VLLM-ROCM (portable — pre-built for AMD GPUs, no compile)
 # ============================================================
 if ! $SKIP_LLAMA; then
-    step "llama.cpp (ROCm + Vulkan)"
+    step "vLLM ROCm (pre-built)"
 
     if $DRY_RUN; then
-        info "Would clone and build llama.cpp with HIP + Vulkan"
+        info "Would download portable vLLM + ROCm for this GPU"
     else
-        export PATH=$PATH:/opt/rocm/bin
-        export HIP_PATH=/opt/rocm
-        export ROCM_PATH=/opt/rocm
+        VLLM_DIR="$HOME/vllm-rocm"
 
-        if [ ! -d "$HOME/llama.cpp" ]; then
-            git clone --depth 1 https://github.com/ggerganov/llama.cpp.git "$HOME/llama.cpp" >> "$LOG_FILE" 2>&1
+        if [ -f "$VLLM_DIR/bin/python3" ]; then
+            log "vLLM ROCm already installed at $VLLM_DIR"
         else
-            cd "$HOME/llama.cpp" && git pull >> "$LOG_FILE" 2>&1
+            # Detect GPU architecture
+            GPU_ARCH="gfx1151"  # default: Strix Halo
+            if command -v rocminfo > /dev/null 2>&1; then
+                DETECTED=$(rocminfo 2>/dev/null | grep -oP 'gfx\d+' | head -1)
+                if [ -n "$DETECTED" ]; then
+                    GPU_ARCH="$DETECTED"
+                fi
+            fi
+            log "Detected GPU architecture: $GPU_ARCH"
+
+            # Map architecture to release tag
+            case "$GPU_ARCH" in
+                gfx1151) VLLM_TAG="vllm0.19.0-rocm7.12.0-gfx1151" ;;
+                gfx1150) VLLM_TAG="vllm0.19.0-rocm7.12.0-gfx1150" ;;
+                gfx1100|gfx1101|gfx1102|gfx1103) VLLM_TAG="vllm0.19.0-rocm7.12.0-gfx110X" ;;
+                gfx1200|gfx1201) VLLM_TAG="vllm0.19.0-rocm7.12.0-gfx120X" ;;
+                *)
+                    warn "No pre-built vLLM for $GPU_ARCH — falling back to gfx1151"
+                    VLLM_TAG="vllm0.19.0-rocm7.12.0-gfx1151"
+                    ;;
+            esac
+
+            log "Downloading vLLM ROCm ($VLLM_TAG)..."
+            VLLM_TMP=$(mktemp -d)
+            gh release download "$VLLM_TAG" \
+                -R lemonade-sdk/vllm-rocm \
+                -D "$VLLM_TMP" >> "$LOG_FILE" 2>&1 &
+            spinner $! "Downloading vLLM ROCm ($VLLM_TAG — this is ~3 GB)..."
+
+            log "Extracting vLLM ROCm..."
+            mkdir -p "$VLLM_DIR"
+            cat "$VLLM_TMP"/*.tar.gz | tar xzf - -C "$VLLM_DIR" 2>&1 &
+            spinner $! "Extracting vLLM ROCm..."
+            rm -rf "$VLLM_TMP"
+
+            # Fix permissions on bundled binaries
+            chmod +x "$VLLM_DIR/bin/python3" 2>/dev/null || true
+            chmod +x "$VLLM_DIR/bin/vllm" 2>/dev/null || true
+            chmod +x "$VLLM_DIR/bin/vllm-server" 2>/dev/null || true
+
+            log "vLLM ROCm installed — $($VLLM_DIR/bin/python3 -c 'import vllm; print(vllm.__version__)' 2>/dev/null || echo 'unknown version')"
         fi
 
-        cd "$HOME/llama.cpp"
-
-        # ── gfx1151 MMQ kernel fix (issue #21284) ──
-        # Stock llama.cpp has suboptimal MMQ parameters that exceed
-        # the 256 VGPR register limit on RDNA 3.5, costing ~20% perf.
-        # Patch: mmq_x=48, mmq_y=64, nwarps=4
-        log "Applying gfx1151 performance patches..."
-        if grep -q 'mmq_x = 64' ggml/src/ggml-cuda/mmq.cu 2>/dev/null; then
-            sed -i 's/mmq_x = 64/mmq_x = 48/g' ggml/src/ggml-cuda/mmq.cu
-            sed -i 's/mmq_y = 128/mmq_y = 64/g' ggml/src/ggml-cuda/mmq.cu
-            sed -i 's/nwarps = 8/nwarps = 4/g' ggml/src/ggml-cuda/mmq.cu
-            log "MMQ kernel parameters patched for gfx1151"
-        else
-            info "MMQ patch already applied or file structure changed — skipping"
-        fi
-
-        # Fast math intrinsics for MoE routing and SiLU
-        # Only replace bare expf() — skip already-prefixed __expf()
-        if grep -q '[^_]expf(' ggml/src/ggml-cuda/fattn-common.cuh 2>/dev/null; then
-            sed -i 's/\([^_]\)expf(\([^)]*\))/\1__expf(\2)/g' ggml/src/ggml-cuda/fattn-common.cuh 2>/dev/null || true
-            log "Fast math intrinsics applied"
-        else
-            info "Fast math patch already applied or not needed — skipping"
-        fi
-
-        rm -rf build
-        cmake -B build \
-            -DGGML_HIP=ON \
-            -DGGML_VULKAN=ON \
-            -DGGML_HIP_ROCWMMA_FATTN=ON \
-            -DAMDGPU_TARGETS=gfx1151 \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_HIP_COMPILER=/opt/rocm/bin/amdclang++ \
-            >> "$LOG_FILE" 2>&1
-
-        cmake --build build --config Release -j"$(nproc)" >> "$LOG_FILE" 2>&1 &
-        spinner $! "Compiling llama.cpp (this is the big one — be patient)..."
-
-        # Stop running instances before overwriting binaries
-        sudo systemctl stop llama-server.service 2>/dev/null || true
-        sudo cp build/bin/llama-server /usr/local/bin/
-        sudo cp build/bin/llama-cli /usr/local/bin/
-        sudo cp build/bin/llama-bench /usr/local/bin/
-
-        # Systemd service (fallback — Lemonade is primary)
-        # Create model symlink dir if it doesn't exist
-        mkdir -p "${HOME}/models"
-        if [ ! -e "${HOME}/models/default.gguf" ]; then
-            warn "No model at ~/models/default.gguf — llama-server won't start until you symlink one"
-            warn "Example: ln -s ~/.cache/huggingface/hub/.../model.gguf ~/models/default.gguf"
-        fi
-
-        sudo tee /usr/lib/systemd/system/llama-server.service > /dev/null << LLAMA_SVC
+        # Systemd service for vLLM (optional — Lemonade is primary)
+        sudo tee /usr/lib/systemd/system/vllm-server.service > /dev/null << VLLM_SVC
 [Unit]
-Description=llama.cpp Inference Server (fallback — Lemonade is primary)
+Description=vLLM Inference Server (ROCm — optional, Lemonade is primary)
 After=network.target
-Conflicts=lemonade-server.service
 
 [Service]
 Type=simple
 User=${USER}
-Environment=PATH=/usr/local/bin:/opt/rocm/bin:/usr/bin
-Environment=ROCBLAS_USE_HIPBLASLT=1
 Environment=HSA_OVERRIDE_GFX_VERSION=11.5.1
-Environment=TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1
-Environment=PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
-ExecStart=/usr/local/bin/llama-server \\
+ExecStart=${VLLM_DIR}/bin/python3 -m vllm.entrypoints.openai.api_server \\
     --host 127.0.0.1 \\
     --port 8080 \\
-    --model ${HOME}/models/default.gguf \\
-    --n-gpu-layers 999 \\
-    --ctx-size 32768 \\
-    --flash-attn on \\
-    --mlock \\
-    --threads 16 \\
-    --threads-batch 32 \\
-    --cont-batching
+    --dtype auto \\
+    --max-model-len 32768
 Restart=on-failure
 RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
-LLAMA_SVC
+VLLM_SVC
 
         # Caddy routes — external-facing ports proxy to Lemonade (primary LLM backend)
         sudo tee /etc/caddy/conf.d/llm-api.caddy > /dev/null << 'LLM_API_CADDY'
@@ -571,13 +547,12 @@ GAIA_UI_CADDY
 GAIA_API_CADDY
 
         sudo systemctl daemon-reload
-        sudo systemctl enable llama-server >> "$LOG_FILE" 2>&1
         sudo systemctl reload caddy >> "$LOG_FILE" 2>&1 || warn "Caddy reload failed — check /etc/caddy/conf.d/ for duplicates"
 
-        log "llama.cpp built and installed — $(/usr/local/bin/llama-server --version 2>&1 | grep version | head -1)"
+        log "vLLM ROCm ready — start with: sudo systemctl start vllm-server"
     fi
 else
-    warn "Skipping llama.cpp"
+    warn "Skipping vLLM ROCm"
 fi
 
 # ============================================================
