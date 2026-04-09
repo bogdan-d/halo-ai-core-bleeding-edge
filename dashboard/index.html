@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" data-glass="frosted" data-wallpaper="grid">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>>> halo-ai_ CORE</title>
+  <style>
+    /* ── Theme: Dark ── */
+    [data-theme="dark"] {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #21262d;
+      --text: #e6edf3;
+      --text-dim: #8b949e;
+      --text-muted: #484f58;
+      --cyan: #00d4ff;
+      --green: #3fb950;
+      --settings-bg: #161b22;
+      --settings-border: #30363d;
+      --btn-bg: #21262d;
+      --btn-active: #00d4ff;
+      --glass-frosted: rgba(22, 27, 34, 0.7);
+      --glass-clear: rgba(22, 27, 34, 0.3);
+      --glass-holo: rgba(22, 27, 34, 0.4);
+      --glow-border: rgba(0, 212, 255, 0.3);
+      --glow-shadow: rgba(0, 212, 255, 0.1);
+      --dot-green: rgba(63, 185, 80, 0.5);
+    }
+
+    /* ── Theme: Light ── */
+    [data-theme="light"] {
+      --bg: #f0f3f6;
+      --surface: #ffffff;
+      --border: #d0d7de;
+      --text: #1f2328;
+      --text-dim: #656d76;
+      --text-muted: #8c959f;
+      --cyan: #0078d4;
+      --green: #1a7f37;
+      --settings-bg: #ffffff;
+      --settings-border: #d0d7de;
+      --btn-bg: #e8ecef;
+      --btn-active: #0078d4;
+      --glass-frosted: rgba(255, 255, 255, 0.7);
+      --glass-clear: rgba(255, 255, 255, 0.3);
+      --glass-holo: rgba(255, 255, 255, 0.4);
+      --glow-border: rgba(0, 120, 212, 0.3);
+      --glow-shadow: rgba(0, 120, 212, 0.1);
+      --dot-green: rgba(26, 127, 55, 0.5);
+    }
+
+    /* ── Theme: Midnight ── */
+    [data-theme="midnight"] {
+      --bg: #020817;
+      --surface: #0a1628;
+      --border: #1a2744;
+      --text: #c8d6e5;
+      --text-dim: #6b7fa3;
+      --text-muted: #3a4f6f;
+      --cyan: #4facfe;
+      --green: #00f5a0;
+      --settings-bg: #0a1628;
+      --settings-border: #1a2744;
+      --btn-bg: #132040;
+      --btn-active: #4facfe;
+      --glass-frosted: rgba(10, 22, 40, 0.7);
+      --glass-clear: rgba(10, 22, 40, 0.3);
+      --glass-holo: rgba(10, 22, 40, 0.4);
+      --glow-border: rgba(79, 172, 254, 0.3);
+      --glow-shadow: rgba(79, 172, 254, 0.1);
+      --dot-green: rgba(0, 245, 160, 0.5);
+    }
+
+    /* ── Theme: Ember ── */
+    [data-theme="ember"] {
+      --bg: #1a0a0a;
+      --surface: #2a1215;
+      --border: #4a2025;
+      --text: #f0d0c0;
+      --text-dim: #a08070;
+      --text-muted: #604540;
+      --cyan: #ff6b35;
+      --green: #ffd700;
+      --settings-bg: #2a1215;
+      --settings-border: #4a2025;
+      --btn-bg: #3a1a20;
+      --btn-active: #ff6b35;
+      --glass-frosted: rgba(42, 18, 21, 0.7);
+      --glass-clear: rgba(42, 18, 21, 0.3);
+      --glass-holo: rgba(42, 18, 21, 0.4);
+      --glow-border: rgba(255, 107, 53, 0.3);
+      --glow-shadow: rgba(255, 107, 53, 0.1);
+      --dot-green: rgba(255, 215, 0, 0.5);
+    }
+
+    /* ── Glass Styles ── */
+    [data-glass="frosted"] .panel {
+      background: var(--glass-frosted);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    [data-glass="clear"] .panel {
+      background: var(--glass-clear);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+    }
+    [data-glass="solid"] .panel {
+      background: var(--surface);
+      backdrop-filter: none;
+    }
+    [data-glass="hologram"] .panel {
+      background: var(--glass-holo);
+      backdrop-filter: blur(8px) saturate(1.8);
+      -webkit-backdrop-filter: blur(8px) saturate(1.8);
+      border-color: var(--glow-border);
+      box-shadow: 0 0 20px var(--glow-shadow), inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+
+    /* ── Wallpaper layer ── */
+    #wallpaper {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    .page {
+      text-align: center;
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 700px;
+      padding: 2rem;
+    }
+
+    .logo {
+      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      margin-bottom: 3rem;
+    }
+
+    .logo .chevron { color: var(--cyan); }
+    .logo .name { color: var(--cyan); }
+    .logo .underscore { color: var(--text); }
+    .logo .core { color: var(--text); font-weight: 900; letter-spacing: 0.1em; }
+
+    .panels {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      margin-bottom: 3rem;
+    }
+
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      text-decoration: none;
+      color: var(--text);
+      transition: all 0.3s;
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .panel:hover {
+      border-color: var(--glow-border);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .panel-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin: 0 auto 0.5rem;
+    }
+
+    .panel-dot.on { background: var(--green); box-shadow: 0 0 10px var(--dot-green); }
+    .panel-dot.off { background: var(--text-muted); }
+
+    .panel-name {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .panel-desc {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+
+    .footer {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
+    }
+
+    /* ── Settings Gear ── */
+    .settings-btn {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--settings-bg);
+      color: var(--text-dim);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      transition: all 0.3s;
+      z-index: 100;
+    }
+    .settings-btn:hover {
+      color: var(--cyan);
+      border-color: var(--cyan);
+      transform: rotate(45deg);
+    }
+
+    /* ── Settings Panel ── */
+    .settings-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    .settings-overlay.open { display: flex; }
+
+    .settings {
+      background: var(--settings-bg);
+      border: 1px solid var(--settings-border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      width: 340px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .settings h2 {
+      font-size: 1rem;
+      margin-bottom: 1.25rem;
+      color: var(--text);
+      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
+    }
+
+    .settings-group {
+      margin-bottom: 1.25rem;
+    }
+
+    .settings-group label {
+      display: block;
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.5rem;
+    }
+
+    .settings-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .opt-btn {
+      padding: 0.35rem 0.7rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--btn-bg);
+      color: var(--text-dim);
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    .opt-btn:hover {
+      border-color: var(--cyan);
+      color: var(--text);
+    }
+    .opt-btn.active {
+      background: var(--btn-active);
+      color: #fff;
+      border-color: var(--btn-active);
+    }
+
+    .settings-close {
+      width: 100%;
+      margin-top: 0.75rem;
+      padding: 0.5rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--btn-bg);
+      color: var(--text);
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    .settings-close:hover {
+      border-color: var(--cyan);
+    }
+
+    @media (max-width: 500px) {
+      .panels { flex-direction: column; align-items: center; }
+      .logo { font-size: 1.4rem; }
+      .settings { width: 90vw; }
+    }
+  </style>
+</head>
+<body>
+  <div id="wallpaper"></div>
+  <div class="page">
+    <div class="logo">
+      <span class="chevron">&gt;&gt;</span>
+      <span class="name"> halo-ai</span><span class="underscore">_</span>
+      <span class="core"> CORE</span>
+    </div>
+
+    <div class="panels">
+      <a class="panel" id="panel-lemonade" href="/" target="_blank">
+        <div class="panel-dot off" id="dot-lemonade"></div>
+        <div class="panel-name">Lemonade</div>
+        <div class="panel-desc">LLM + media inference</div>
+      </a>
+      <a class="panel" id="panel-gaia" href="/" target="_blank">
+        <div class="panel-dot off" id="dot-gaia"></div>
+        <div class="panel-name">Gaia</div>
+        <div class="panel-desc">AI agents</div>
+      </a>
+    </div>
+
+    <div class="footer">designed and built by the architect</div>
+  </div>
+
+  <!-- Settings Gear -->
+  <button class="settings-btn" id="settings-open" title="Customize">&#9881;</button>
+
+  <!-- Settings Panel -->
+  <div class="settings-overlay" id="settings-overlay">
+    <div class="settings">
+      <h2>&gt;&gt; customize_</h2>
+
+      <div class="settings-group">
+        <label>Theme</label>
+        <div class="settings-options" data-setting="theme">
+          <button class="opt-btn" data-value="dark">Dark</button>
+          <button class="opt-btn" data-value="light">Light</button>
+          <button class="opt-btn" data-value="midnight">Midnight</button>
+          <button class="opt-btn" data-value="ember">Ember</button>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <label>Glass</label>
+        <div class="settings-options" data-setting="glass">
+          <button class="opt-btn" data-value="frosted">Frosted</button>
+          <button class="opt-btn" data-value="clear">Clear</button>
+          <button class="opt-btn" data-value="solid">Solid</button>
+          <button class="opt-btn" data-value="hologram">Hologram</button>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <label>Wallpaper</label>
+        <div class="settings-options" data-setting="wallpaper">
+          <button class="opt-btn" data-value="grid">Grid</button>
+          <button class="opt-btn" data-value="dots">Dots</button>
+          <button class="opt-btn" data-value="gradient">Gradient</button>
+          <button class="opt-btn" data-value="mesh">Mesh</button>
+          <button class="opt-btn" data-value="none">None</button>
+        </div>
+      </div>
+
+      <button class="settings-close" id="settings-close">Done</button>
+    </div>
+  </div>
+
+  <script>
+    const H = window.location.hostname
+    const root = document.documentElement
+
+    // ── Service links ──
+    document.getElementById('panel-lemonade').href = `http://${H}:13306`
+    document.getElementById('panel-gaia').href = `http://${H}:4201`
+
+    // ── Health checks ──
+    async function check(id, url) {
+      try {
+        await fetch(url, { mode: 'no-cors', signal: AbortSignal.timeout(3000) })
+        document.getElementById(id).className = 'panel-dot on'
+      } catch {
+        document.getElementById(id).className = 'panel-dot off'
+      }
+    }
+    check('dot-lemonade', `http://${H}:13306/`)
+    check('dot-gaia', `http://${H}:4201/`)
+    setInterval(() => {
+      check('dot-lemonade', `http://${H}:13306/`)
+      check('dot-gaia', `http://${H}:4201/`)
+    }, 10000)
+
+    // ── Settings persistence ──
+    const STORAGE_KEY = 'halo-dashboard-prefs'
+
+    function loadPrefs() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}
+      } catch { return {} }
+    }
+
+    function savePrefs(prefs) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs))
+    }
+
+    // ── Wallpaper renderer (theme-aware) ──
+    const themeColors = {
+      dark:     { line: '230,237,243', accent: '0,212,255', green: '63,185,80' },
+      light:    { line: '31,35,40',    accent: '0,120,212', green: '26,127,55' },
+      midnight: { line: '200,214,229', accent: '79,172,254', green: '0,245,160' },
+      ember:    { line: '240,208,192', accent: '255,107,53', green: '255,215,0' }
+    }
+
+    function applyWallpaper() {
+      const wp = root.getAttribute('data-wallpaper')
+      const theme = root.getAttribute('data-theme')
+      const colors = themeColors[theme] || themeColors.dark
+      const el = document.getElementById('wallpaper')
+
+      if (wp === 'none') {
+        el.style.backgroundImage = 'none'
+        return
+      }
+
+      let bg, size = 'auto', pos = '0 0'
+      if (wp === 'grid') {
+        const c = colors.line
+        bg = `linear-gradient(rgba(${c},0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(${c},0.03) 1px, transparent 1px)`
+        size = '60px 60px'
+      } else if (wp === 'dots') {
+        bg = `radial-gradient(rgba(${colors.line},0.07) 1px, transparent 1px)`
+        size = '30px 30px'
+      } else if (wp === 'gradient') {
+        bg = `radial-gradient(ellipse at 30% 20%, rgba(${colors.accent},0.1) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, rgba(${colors.green},0.07) 0%, transparent 50%)`
+      } else if (wp === 'mesh') {
+        const a = `rgba(${colors.accent},0.05)`
+        bg = `linear-gradient(30deg, ${a} 12%, transparent 12.5%, transparent 87%, ${a} 87.5%), linear-gradient(150deg, ${a} 12%, transparent 12.5%, transparent 87%, ${a} 87.5%), linear-gradient(30deg, ${a} 12%, transparent 12.5%, transparent 87%, ${a} 87.5%), linear-gradient(150deg, ${a} 12%, transparent 12.5%, transparent 87%, ${a} 87.5%)`
+        size = '80px 140px'
+        pos = '0 0, 0 0, 40px 70px, 40px 70px'
+      }
+
+      el.style.backgroundImage = bg || 'none'
+      el.style.backgroundSize = size
+      el.style.backgroundPosition = pos
+    }
+
+    function applySetting(key, value) {
+      root.setAttribute(`data-${key}`, value)
+      const prefs = loadPrefs()
+      prefs[key] = value
+      savePrefs(prefs)
+
+      // Update active buttons
+      document.querySelectorAll(`[data-setting="${key}"] .opt-btn`).forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.value === value)
+      })
+
+      // Theme or wallpaper change → re-render wallpaper with correct colors
+      if (key === 'theme' || key === 'wallpaper') applyWallpaper()
+    }
+
+    // Load saved prefs on init
+    const saved = loadPrefs()
+    if (saved.theme) applySetting('theme', saved.theme)
+    if (saved.glass) applySetting('glass', saved.glass)
+    if (saved.wallpaper) applySetting('wallpaper', saved.wallpaper)
+
+    // Mark current active buttons
+    ;['theme', 'glass', 'wallpaper'].forEach(key => {
+      const current = root.getAttribute(`data-${key}`)
+      document.querySelectorAll(`[data-setting="${key}"] .opt-btn`).forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.value === current)
+      })
+    })
+
+    // ── Settings panel open/close ──
+    const overlay = document.getElementById('settings-overlay')
+    document.getElementById('settings-open').addEventListener('click', () => {
+      overlay.classList.add('open')
+    })
+    document.getElementById('settings-close').addEventListener('click', () => {
+      overlay.classList.remove('open')
+    })
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) overlay.classList.remove('open')
+    })
+
+    // ── Option buttons ──
+    document.querySelectorAll('.opt-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const setting = btn.closest('[data-setting]').dataset.setting
+        applySetting(setting, btn.dataset.value)
+      })
+    })
+
+    // Apply wallpaper on init
+    applyWallpaper()
+  </script>
+</body>
+</html>
