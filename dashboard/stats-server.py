@@ -161,6 +161,66 @@ def get_models():
         return []
 
 
+def get_logs():
+    """Get recent system logs relevant to halo-ai services."""
+    import subprocess
+    lines = []
+    try:
+        # Recent journal entries for halo services
+        result = subprocess.run(
+            ['journalctl', '--user', '-n', '50', '--no-pager', '-o', 'short-iso',
+             '-u', 'lemonade*', '-u', 'halo-*', '-u', 'gaia*', '-u', 'caddy*', '-u', 'kokoro*'],
+            capture_output=True, text=True, timeout=5
+        )
+        lines = result.stdout.strip().split('\n') if result.stdout.strip() else []
+    except Exception:
+        pass
+
+    if not lines:
+        try:
+            result = subprocess.run(
+                ['journalctl', '-n', '50', '--no-pager', '-o', 'short-iso'],
+                capture_output=True, text=True, timeout=5
+            )
+            lines = result.stdout.strip().split('\n') if result.stdout.strip() else []
+        except Exception:
+            lines = ['[no journal access]']
+
+    return {'lines': lines[-50:]}
+
+
+def run_safe_cmd(cmd):
+    """Run read-only safe commands for the terminal."""
+    import subprocess
+    import shlex
+
+    # Whitelist of safe commands
+    safe_prefixes = [
+        'systemctl --user status', 'systemctl --user list-units',
+        'systemctl status', 'journalctl',
+        'uname', 'uptime', 'free', 'df', 'lscpu', 'lspci',
+        'ip addr', 'ip link', 'ss -tlnp',
+        'pacman -Q', 'pyenv versions',
+        'lemonade status', 'lemonade list', 'lemonade backends',
+        'cat /proc/cpuinfo', 'cat /proc/meminfo',
+        'ls', 'pwd', 'whoami', 'hostname', 'date',
+        'rocminfo', 'rocm-smi',
+        'neofetch', 'fastfetch',
+    ]
+
+    if not cmd or not any(cmd.startswith(p) for p in safe_prefixes):
+        return {'output': f'blocked: {cmd}\nonly read-only system commands allowed', 'exit': 1}
+
+    try:
+        result = subprocess.run(
+            shlex.split(cmd), capture_output=True, text=True, timeout=10
+        )
+        output = result.stdout + result.stderr
+        return {'output': output[-4000:], 'exit': result.returncode}
+    except Exception as e:
+        return {'output': str(e), 'exit': 1}
+
+
 def get_gaia():
     """Fetch Gaia health + agent profiles."""
     result = {'status': 'offline', 'sessions': 0, 'messages': 0, 'agents': []}
@@ -205,6 +265,15 @@ class StatsHandler(BaseHTTPRequestHandler):
             payload = json.dumps(get_models()).encode()
         elif self.path == '/gaia':
             payload = json.dumps(get_gaia()).encode()
+        elif self.path == '/logs':
+            payload = json.dumps(get_logs()).encode()
+        elif self.path.startswith('/exec'):
+            # Run safe read-only commands
+            import urllib.parse
+            qs = urllib.parse.urlparse(self.path).query
+            params = urllib.parse.parse_qs(qs)
+            cmd = params.get('cmd', [''])[0]
+            payload = json.dumps(run_safe_cmd(cmd)).encode()
         else:
             self.send_response(404)
             self.end_headers()

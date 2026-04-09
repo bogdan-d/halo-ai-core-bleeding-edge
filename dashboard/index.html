@@ -107,6 +107,36 @@
 
     .footer { font-size:.7rem;color:var(--text-muted);text-align:center; }
 
+    /* ── Terminal ── */
+    .term-wrap { width:100%;max-width:1000px;margin-bottom:2rem; }
+    .term {
+      background:#0a0a0a;border:1px solid #222;border-radius:8px;
+      overflow:hidden;
+    }
+    .term-bar {
+      background:#1a1a1a;padding:.35rem .75rem;display:flex;align-items:center;gap:.5rem;
+      border-bottom:1px solid #222;
+    }
+    .term-dots { display:flex;gap:.35rem; }
+    .term-dots span { width:8px;height:8px;border-radius:50%; }
+    .term-dots .d1 { background:#ff5f57; } .term-dots .d2 { background:#febc2e; } .term-dots .d3 { background:#28c840; }
+    .term-title { font-size:.6rem;color:#666;margin-left:.5rem; }
+    .term-body {
+      padding:.75rem;height:320px;overflow-y:auto;
+      font-size:.65rem;line-height:1.5;color:#b0b0b0;white-space:pre-wrap;word-break:break-all;
+    }
+    .term-body::-webkit-scrollbar { width:6px; }
+    .term-body::-webkit-scrollbar-track { background:#0a0a0a; }
+    .term-body::-webkit-scrollbar-thumb { background:#333;border-radius:3px; }
+    .term-input-wrap {
+      display:flex;align-items:center;padding:0 .75rem .5rem;background:#0a0a0a;gap:.4rem;
+    }
+    .term-prompt { color:var(--accent);font-size:.65rem;white-space:nowrap; }
+    .term-input {
+      flex:1;background:transparent;border:none;outline:none;
+      color:#e0e0e0;font-family:inherit;font-size:.65rem;caret-color:var(--accent);
+    }
+
     /* ── Settings ── */
     .settings-btn { position:fixed;bottom:1.5rem;right:1.5rem;width:40px;height:40px;border-radius:50%;border:1px solid var(--border);background:var(--settings-bg);color:var(--text-dim);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.2rem;transition:all .3s;z-index:100; }
     .settings-btn:hover { color:var(--accent);border-color:var(--accent);transform:rotate(45deg); }
@@ -178,6 +208,21 @@
         <div class="list-sections mono" id="gaia-agents"><div style="text-align:center;color:var(--text-muted);font-size:.6rem;grid-column:1/-1">loading agents...</div></div>
         <div class="card-hint mono">click to open Gaia &rarr;</div>
       </a>
+    </div>
+
+    <!-- Terminal -->
+    <div class="term-wrap">
+      <div class="term">
+        <div class="term-bar mono">
+          <div class="term-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+          <span class="term-title">halo-ai — terminal</span>
+        </div>
+        <div class="term-body mono" id="term-output">loading logs...</div>
+        <div class="term-input-wrap mono">
+          <span class="term-prompt">&gt;&gt;</span>
+          <input class="term-input mono" id="term-input" type="text" placeholder="type a command..." autocomplete="off" spellcheck="false">
+        </div>
+      </div>
     </div>
 
     <div class="footer mono">designed and built by the architect</div>
@@ -320,6 +365,67 @@
     ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open')})
     document.querySelectorAll('.opt-btn').forEach(b=>b.addEventListener('click',()=>as(b.closest('[data-setting]').dataset.setting,b.dataset.value)))
     aw()
+
+    // ── Terminal ──
+    const termOut = document.getElementById('term-output')
+    const termIn = document.getElementById('term-input')
+    let termHistory = []
+    let histIdx = -1
+
+    function termScroll() { termOut.scrollTop = termOut.scrollHeight }
+
+    function termAppend(text, cls) {
+      const line = document.createElement('div')
+      line.textContent = text
+      if (cls) line.style.color = cls
+      termOut.appendChild(line)
+      // Keep last 500 lines
+      while (termOut.children.length > 500) termOut.removeChild(termOut.firstChild)
+      termScroll()
+    }
+
+    async function termLoadLogs() {
+      try {
+        const r = await fetch('/api/logs', { signal: AbortSignal.timeout(5000) })
+        const d = await r.json()
+        termOut.innerHTML = ''
+        d.lines.forEach(l => termAppend(l))
+        termAppend('', '')
+        termAppend('type a command and press enter (read-only: uname, uptime, free, df, lspci, systemctl status, lemonade status, etc.)', '#555')
+      } catch {
+        termOut.textContent = 'terminal unavailable — stats server not running'
+      }
+    }
+
+    async function termExec(cmd) {
+      termAppend(`>> ${cmd}`, 'var(--accent)')
+      try {
+        const r = await fetch(`/api/exec?cmd=${encodeURIComponent(cmd)}`, { signal: AbortSignal.timeout(15000) })
+        const d = await r.json()
+        d.output.split('\n').forEach(l => termAppend(l))
+      } catch {
+        termAppend('error: command failed', '#ff5f57')
+      }
+    }
+
+    termIn.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && termIn.value.trim()) {
+        const cmd = termIn.value.trim()
+        termHistory.unshift(cmd)
+        histIdx = -1
+        termExec(cmd)
+        termIn.value = ''
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        if (histIdx < termHistory.length - 1) { histIdx++; termIn.value = termHistory[histIdx] }
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        if (histIdx > 0) { histIdx--; termIn.value = termHistory[histIdx] }
+        else { histIdx = -1; termIn.value = '' }
+      }
+    })
+
+    termLoadLogs()
   </script>
 </body>
 </html>
