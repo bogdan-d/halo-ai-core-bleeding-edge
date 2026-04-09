@@ -213,9 +213,12 @@ if ! $SKIP_REBUILD; then
             log "MMQ kernel parameters patched"
         fi
 
-        # Fast math intrinsics
-        if grep -q 'expf(' ggml/src/ggml-cuda/fattn-common.cuh 2>/dev/null; then
-            sed -i 's/expf(\([^)]*\))/__expf(\1)/g' ggml/src/ggml-cuda/fattn-common.cuh 2>/dev/null || true
+        # Fast math intrinsics — replace standalone expf() with __expf()
+        # IMPORTANT: only match expf NOT already prefixed with underscore
+        # the naive sed 's/expf/__expf/g' will double-replace __expf → ____expf
+        if grep -q '[^_]expf(' ggml/src/ggml-cuda/fattn-common.cuh 2>/dev/null; then
+            git checkout -- ggml/src/ggml-cuda/fattn-common.cuh 2>/dev/null || true
+            sed -i 's/\([^_]\)expf(\([^)]*\))/\1__expf(\2)/g' ggml/src/ggml-cuda/fattn-common.cuh 2>/dev/null || true
             log "Fast math intrinsics applied"
         fi
 
@@ -235,9 +238,23 @@ if ! $SKIP_REBUILD; then
         spinner $! "Compiling llama.cpp with Zen 5 flags (the big one)..."
 
         sudo systemctl stop llama-server.service 2>/dev/null || true
-        sudo cp build/bin/llama-server /usr/local/bin/
-        sudo cp build/bin/llama-cli /usr/local/bin/
-        sudo cp build/bin/llama-bench /usr/local/bin/
+
+        # binary location varies by llama.cpp version
+        BIN_DIR="build/bin"
+        if [ ! -f "$BIN_DIR/llama-server" ]; then
+            # newer versions may place binaries in build/tools/
+            BIN_DIR=$(dirname "$(find build -name 'llama-server' -type f 2>/dev/null | head -1)" 2>/dev/null)
+        fi
+        if [ -z "$BIN_DIR" ] || [ ! -f "$BIN_DIR/llama-server" ]; then
+            err "llama-server binary not found after build — check $LOG_FILE"
+            exit 1
+        fi
+        log "Binaries found in: $BIN_DIR"
+
+        sudo cp "$BIN_DIR/llama-server" /usr/local/bin/
+        sudo cp "$BIN_DIR/llama-cli" /usr/local/bin/ 2>/dev/null || true
+        sudo cp "$BIN_DIR/llama-bench" /usr/local/bin/ 2>/dev/null || \
+            sudo cp "$(find build -name 'llama-bench' -type f 2>/dev/null | head -1)" /usr/local/bin/ 2>/dev/null || true
 
         log "llama.cpp rebuilt with Zen 5 AVX-512 + Polly optimizations"
     fi
@@ -262,8 +279,8 @@ if ! $SKIP_NPU; then
             warn "Reboot into linux-mainline first, then re-run with --skip-kernel --skip-rebuild"
             info "NPU configuration will be applied after kernel upgrade"
         else
-            if [ -c /dev/accel0 ]; then
-                log "NPU device /dev/accel0 found"
+            if [ -c /dev/accel/accel0 ] || [ -c /dev/accel0 ]; then
+                log "NPU device found: $(ls /dev/accel/accel0 /dev/accel0 2>/dev/null | head -1)"
 
                 # Add user to render group for NPU access
                 sudo usermod -aG render "$USER"
@@ -278,8 +295,8 @@ if ! $SKIP_NPU; then
 
                 log "NPU configured — ready for offload testing"
             else
-                warn "/dev/accel0 not found — XDNA2 driver may not be in this kernel build"
-                info "Check: ls /dev/accel* && lsmod | grep amdxdna"
+                warn "NPU device not found at /dev/accel/accel0 or /dev/accel0"
+                info "Check: ls /dev/accel/ && lsmod | grep amdxdna"
             fi
         fi
     fi
