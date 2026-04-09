@@ -145,6 +145,78 @@
     .gen-placeholder { color:var(--text-muted);font-size:.7rem; }
     .gen-status { font-size:.6rem;color:var(--text-dim);margin-top:.5rem;text-align:center; }
 
+    /* ── Voice Interaction ── */
+    .voice-wrap { width:100%;max-width:1000px;margin-bottom:1.5rem; }
+    .voice-panel { border:1px solid var(--border);border-radius:12px;padding:2rem;text-align:center;overflow:hidden; }
+    .voice-title { font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:1.25rem; }
+
+    .mic-btn {
+      width:80px;height:80px;border-radius:50%;border:2px solid var(--accent);
+      background:transparent;color:var(--accent);cursor:pointer;
+      display:inline-flex;align-items:center;justify-content:center;
+      font-size:2rem;transition:all .3s;position:relative;
+    }
+    .mic-btn:hover { background:rgba(from var(--accent) r g b / .1);background:var(--glass-clear); }
+    .mic-btn.listening {
+      border-color:var(--green);color:var(--green);
+      animation:mic-pulse 1.5s ease-in-out infinite;
+    }
+    .mic-btn.processing {
+      border-color:var(--accent);color:var(--accent);
+      animation:mic-spin 1s linear infinite;
+    }
+    .mic-btn.speaking {
+      border-color:var(--img-color, #e879f9);color:var(--img-color, #e879f9);
+      animation:mic-pulse .8s ease-in-out infinite;
+    }
+    @keyframes mic-pulse {
+      0%,100% { box-shadow:0 0 0 0 rgba(from var(--green) r g b / .4); box-shadow:0 0 0 0 currentColor; opacity:1; }
+      50% { box-shadow:0 0 20px 10px transparent; opacity:.8; }
+    }
+    @keyframes mic-spin {
+      from { transform:rotate(0deg); }
+      to { transform:rotate(360deg); }
+    }
+
+    .mic-rings {
+      position:absolute;inset:-15px;border-radius:50%;
+      border:1px solid currentColor;opacity:0;
+      animation:ring-expand 2s ease-out infinite;
+    }
+    .mic-rings.r2 { animation-delay:.5s; }
+    .mic-rings.r3 { animation-delay:1s; }
+    @keyframes ring-expand {
+      0% { transform:scale(.8);opacity:.6; }
+      100% { transform:scale(1.6);opacity:0; }
+    }
+
+    .voice-status { font-size:.75rem;color:var(--text-dim);margin-top:1rem;min-height:1.2em; }
+    .voice-transcript {
+      font-size:.7rem;color:var(--text);margin-top:.5rem;
+      max-height:120px;overflow-y:auto;text-align:left;
+      padding:.5rem;border-radius:6px;background:var(--bg);
+      border:1px solid var(--border);display:none;
+    }
+    .voice-transcript.show { display:block; }
+    .voice-transcript .vt-you { color:var(--accent); }
+    .voice-transcript .vt-ai { color:var(--text-dim); }
+
+    /* ── Agents Section ── */
+    .agents-wrap { width:100%;max-width:1000px;margin-bottom:1.5rem; }
+    .agents-title { font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.75rem;text-align:center; }
+    .agents-grid {
+      display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.5rem;
+    }
+    .agent-card {
+      border:1px solid var(--border);border-radius:8px;padding:.6rem .75rem;
+      display:flex;align-items:center;gap:.5rem;transition:all .2s;cursor:default;
+    }
+    .agent-card:hover { border-color:var(--glow-border); }
+    .agent-icon { font-size:1.1rem;width:28px;text-align:center;flex-shrink:0; }
+    .agent-info { min-width:0; }
+    .agent-name { font-size:.7rem;font-weight:700;color:var(--text); }
+    .agent-desc { font-size:.55rem;color:var(--text-muted); }
+
     /* ── Terminal ── */
     .term-wrap { width:100%;max-width:1000px;margin-bottom:2rem; }
     .term {
@@ -248,6 +320,21 @@
       </a>
     </div>
 
+    <!-- Voice Interaction -->
+    <div class="voice-wrap">
+      <div class="voice-panel svc-card">
+        <div class="voice-title mono">talk to halo-ai</div>
+        <button class="mic-btn" id="mic-btn" title="Click to speak">
+          <span id="mic-icon">&#x1F399;</span>
+          <div class="mic-rings" id="ring1"></div>
+          <div class="mic-rings r2" id="ring2"></div>
+          <div class="mic-rings r3" id="ring3"></div>
+        </button>
+        <div class="voice-status mono" id="voice-status">click the mic to start</div>
+        <div class="voice-transcript mono" id="voice-log"></div>
+      </div>
+    </div>
+
     <!-- Image / Video Gen -->
     <div class="gen-wrap">
       <div class="gen-panel svc-card">
@@ -266,6 +353,45 @@
           <span class="gen-placeholder mono">your creation appears here</span>
         </div>
         <div class="gen-status mono" id="gen-status"></div>
+      </div>
+    </div>
+
+    <!-- Agents -->
+    <div class="agents-wrap">
+      <div class="agents-title mono">agents</div>
+      <div class="agents-grid" id="agents-grid">
+        <div class="agent-card svc-card">
+          <div class="agent-icon">&#x1F3B5;</div>
+          <div class="agent-info"><div class="agent-name">Muse</div><div class="agent-desc">Entertainment & media</div></div>
+        </div>
+        <div class="agent-card svc-card">
+          <div class="agent-icon">&#x1F4AC;</div>
+          <div class="agent-info"><div class="agent-name">Chat</div><div class="agent-desc">RAG + vision assistant</div></div>
+        </div>
+        <div class="agent-card svc-card">
+          <div class="agent-icon">&#x1F4BB;</div>
+          <div class="agent-info"><div class="agent-name">Code</div><div class="agent-desc">Autonomous coding</div></div>
+        </div>
+        <div class="agent-card svc-card">
+          <div class="agent-icon">&#x1F50A;</div>
+          <div class="agent-info"><div class="agent-name">Talk</div><div class="agent-desc">Voice-enabled chat</div></div>
+        </div>
+        <div class="agent-card svc-card">
+          <div class="agent-icon">&#x1F4DA;</div>
+          <div class="agent-info"><div class="agent-name">RAG</div><div class="agent-desc">Document Q&A</div></div>
+        </div>
+        <div class="agent-card svc-card">
+          <div class="agent-icon">&#x1F441;</div>
+          <div class="agent-info"><div class="agent-name">Vision</div><div class="agent-desc">Image understanding</div></div>
+        </div>
+        <div class="agent-card svc-card">
+          <div class="agent-icon">&#x1F3AE;</div>
+          <div class="agent-info"><div class="agent-name">Blender</div><div class="agent-desc">3D content generation</div></div>
+        </div>
+        <div class="agent-card svc-card">
+          <div class="agent-icon">&#x1F433;</div>
+          <div class="agent-info"><div class="agent-name">Docker</div><div class="agent-desc">Container management</div></div>
+        </div>
       </div>
     </div>
 
@@ -424,6 +550,140 @@
     ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open')})
     document.querySelectorAll('.opt-btn').forEach(b=>b.addEventListener('click',()=>as(b.closest('[data-setting]').dataset.setting,b.dataset.value)))
     aw()
+
+    // ── Voice Interaction ──
+    const micBtn = document.getElementById('mic-btn')
+    const micIcon = document.getElementById('mic-icon')
+    const voiceStatus = document.getElementById('voice-status')
+    const voiceLog = document.getElementById('voice-log')
+    const rings = [document.getElementById('ring1'), document.getElementById('ring2'), document.getElementById('ring3')]
+    let voiceState = 'idle' // idle, listening, processing, speaking
+    let mediaRecorder = null
+    let audioChunks = []
+
+    function setVoiceState(state, msg) {
+      voiceState = state
+      micBtn.className = 'mic-btn' + (state !== 'idle' ? ' ' + state : '')
+      voiceStatus.textContent = msg || ''
+      rings.forEach(r => r.style.display = state === 'listening' ? 'block' : 'none')
+      if (state === 'listening') micIcon.textContent = '\u23FA' // record dot
+      else if (state === 'processing') micIcon.textContent = '\u2699' // gear
+      else if (state === 'speaking') micIcon.textContent = '\uD83D\uDD0A' // speaker
+      else micIcon.innerHTML = '&#x1F399;' // mic
+    }
+
+    function appendLog(who, text) {
+      voiceLog.classList.add('show')
+      const div = document.createElement('div')
+      div.className = who === 'you' ? 'vt-you' : 'vt-ai'
+      div.textContent = `${who === 'you' ? '> ' : 'AI: '}${text}`
+      voiceLog.appendChild(div)
+      voiceLog.scrollTop = voiceLog.scrollHeight
+    }
+
+    micBtn.addEventListener('click', async () => {
+      if (voiceState === 'listening') {
+        // Stop recording
+        if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop()
+        return
+      }
+      if (voiceState !== 'idle') return
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        audioChunks = []
+        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' })
+
+        mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data) }
+
+        mediaRecorder.onstop = async () => {
+          stream.getTracks().forEach(t => t.stop())
+          const blob = new Blob(audioChunks, { type: 'audio/webm' })
+
+          if (blob.size < 1000) { setVoiceState('idle', 'too short — try again'); return }
+
+          // Transcribe
+          setVoiceState('processing', 'transcribing...')
+          const formData = new FormData()
+          formData.append('file', blob, 'audio.webm')
+          formData.append('model', 'Whisper-Large-v3-Turbo')
+
+          let text = ''
+          try {
+            const r = await fetch(`http://${H}:13306/v1/audio/transcriptions`, {
+              method: 'POST', body: formData, signal: AbortSignal.timeout(30000)
+            })
+            const d = await r.json()
+            text = (d.text || '').trim()
+          } catch (e) {
+            setVoiceState('idle', 'transcription failed — is Whisper loaded?')
+            return
+          }
+
+          if (!text || text.length < 2) { setVoiceState('idle', 'no speech detected — try again'); return }
+          appendLog('you', text)
+          setVoiceState('processing', 'thinking...')
+
+          // LLM
+          let reply = ''
+          try {
+            const r = await fetch(`http://${H}:13306/v1/chat/completions`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                model: 'Qwen3.5-35B-A3B-GGUF',
+                messages: [
+                  { role: 'system', content: 'You are a helpful AI assistant on halo-ai. Be concise — 2-3 sentences max.' },
+                  { role: 'user', content: text }
+                ],
+                max_tokens: 200
+              }),
+              signal: AbortSignal.timeout(60000)
+            })
+            const d = await r.json()
+            reply = d.choices?.[0]?.message?.content?.trim() || 'no response'
+          } catch (e) {
+            setVoiceState('idle', 'LLM failed — is a model loaded?')
+            return
+          }
+
+          appendLog('ai', reply)
+          setVoiceState('speaking', 'speaking...')
+
+          // TTS
+          try {
+            const r = await fetch(`http://${H}:13306/v1/audio/speech`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ model: 'kokoro-v1', input: reply, voice: 'af_heart' }),
+              signal: AbortSignal.timeout(30000)
+            })
+            if (r.ok) {
+              const audioBlob = await r.blob()
+              const audioUrl = URL.createObjectURL(audioBlob)
+              const audio = new Audio(audioUrl)
+              audio.onended = () => { setVoiceState('idle', 'click the mic to speak again'); URL.revokeObjectURL(audioUrl) }
+              audio.play()
+            } else {
+              setVoiceState('idle', reply)
+            }
+          } catch {
+            setVoiceState('idle', reply)
+          }
+        }
+
+        setVoiceState('listening', 'listening... click mic to stop')
+        mediaRecorder.start()
+
+        // Auto-stop after 15 seconds
+        setTimeout(() => {
+          if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop()
+        }, 15000)
+
+      } catch (e) {
+        setVoiceState('idle', 'mic access denied — check browser permissions')
+      }
+    })
 
     // ── Image / Video Generation ──
     let genMode = 'image'
