@@ -16,7 +16,7 @@
 set -e
 
 VERSION="0.1.0"
-LOG_FILE="/tmp/halo-bleeding-edge.log"
+LOG_FILE="$(mktemp /tmp/halo-bleeding-edge-XXXXXX.log)"
 DRY_RUN=false
 SKIP_KERNEL=false
 SKIP_REBUILD=false
@@ -162,16 +162,18 @@ if ! $SKIP_KERNEL; then
         # Need an AUR helper
         if ! command -v paru &>/dev/null && ! command -v yay &>/dev/null; then
             log "Installing paru (AUR helper)..."
-            sudo pacman -S --needed --noconfirm base-devel >> "$LOG_FILE" 2>&1
-            git clone https://aur.archlinux.org/paru.git /tmp/paru >> "$LOG_FILE" 2>&1
-            cd /tmp/paru && makepkg -si --noconfirm >> "$LOG_FILE" 2>&1
-            cd -
+            sudo pacman -S --needed --noconfirm base-devel 2>&1 | sudo tee -a "$LOG_FILE" >/dev/null
+            PARU_BUILD=$(mktemp -d /tmp/paru-build-XXXXXX)
+            git clone https://aur.archlinux.org/paru.git "$PARU_BUILD" >> "$LOG_FILE" 2>&1
+            cd "$PARU_BUILD" && makepkg -si --noconfirm >> "$LOG_FILE" 2>&1
+            cd - >/dev/null
+            rm -rf "$PARU_BUILD"
         fi
 
-        AUR_HELPER=$(command -v paru || command -v yay)
+        AUR_HELPER="$(command -v paru || command -v yay)"
 
         log "Building linux-mainline (this will take a while)..."
-        $AUR_HELPER -S --noconfirm linux-mainline linux-mainline-headers >> "$LOG_FILE" 2>&1 &
+        "$AUR_HELPER" -S --noconfirm linux-mainline linux-mainline-headers >> "$LOG_FILE" 2>&1 &
         spinner $! "Compiling kernel 7.0-rc (go make dinner)..."
 
         # Update GRUB/systemd-boot
@@ -245,7 +247,7 @@ if ! $SKIP_REBUILD; then
             # newer versions may place binaries in build/tools/
             BIN_DIR=$(dirname "$(find build -name 'llama-server' -type f 2>/dev/null | head -1)" 2>/dev/null)
         fi
-        if [ -z "$BIN_DIR" ] || [ ! -f "$BIN_DIR/llama-server" ]; then
+        if [ -z "$BIN_DIR" ] || [ "$BIN_DIR" = "." ] || [ ! -f "$BIN_DIR/llama-server" ]; then
             err "llama-server binary not found after build — check $LOG_FILE"
             exit 1
         fi
