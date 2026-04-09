@@ -5,528 +5,321 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>>> halo-ai_ CORE</title>
   <style>
-    /* ── Theme: Dark ── */
     [data-theme="dark"] {
-      --bg: #0d1117;
-      --surface: #161b22;
-      --border: #21262d;
-      --text: #e6edf3;
-      --text-dim: #8b949e;
-      --text-muted: #484f58;
-      --cyan: #00d4ff;
-      --green: #3fb950;
-      --settings-bg: #161b22;
-      --settings-border: #30363d;
-      --btn-bg: #21262d;
-      --btn-active: #00d4ff;
-      --glass-frosted: rgba(22, 27, 34, 0.7);
-      --glass-clear: rgba(22, 27, 34, 0.3);
-      --glass-holo: rgba(22, 27, 34, 0.4);
-      --glow-border: rgba(0, 212, 255, 0.3);
-      --glow-shadow: rgba(0, 212, 255, 0.1);
-      --dot-green: rgba(63, 185, 80, 0.5);
+      --bg:#0d1117;--surface:#161b22;--border:#21262d;--text:#e6edf3;--text-dim:#8b949e;--text-muted:#484f58;
+      --accent:#00d4ff;--green:#3fb950;--line:rgba(230,237,243,0.08);
+      --settings-bg:#161b22;--settings-border:#30363d;--btn-bg:#21262d;--btn-active:#00d4ff;
+      --glass-frosted:rgba(22,27,34,0.7);--glass-clear:rgba(22,27,34,0.3);--glass-holo:rgba(22,27,34,0.4);
+      --glow-border:rgba(0,212,255,0.3);--glow-shadow:rgba(0,212,255,0.1);--dot-green:rgba(63,185,80,0.5);
+      --npu:#3fb950;--gpu:#00d4ff;--img:#e879f9;--aud:#fb923c;
     }
-
-    /* ── Theme: Light ── */
     [data-theme="light"] {
-      --bg: #f0f3f6;
-      --surface: #ffffff;
-      --border: #d0d7de;
-      --text: #1f2328;
-      --text-dim: #656d76;
-      --text-muted: #8c959f;
-      --cyan: #0078d4;
-      --green: #1a7f37;
-      --settings-bg: #ffffff;
-      --settings-border: #d0d7de;
-      --btn-bg: #e8ecef;
-      --btn-active: #0078d4;
-      --glass-frosted: rgba(255, 255, 255, 0.7);
-      --glass-clear: rgba(255, 255, 255, 0.3);
-      --glass-holo: rgba(255, 255, 255, 0.4);
-      --glow-border: rgba(0, 120, 212, 0.3);
-      --glow-shadow: rgba(0, 120, 212, 0.1);
-      --dot-green: rgba(26, 127, 55, 0.5);
+      --bg:#f0f3f6;--surface:#ffffff;--border:#d0d7de;--text:#1f2328;--text-dim:#656d76;--text-muted:#8c959f;
+      --accent:#0078d4;--green:#1a7f37;--line:rgba(31,35,40,0.1);
+      --settings-bg:#ffffff;--settings-border:#d0d7de;--btn-bg:#e8ecef;--btn-active:#0078d4;
+      --glass-frosted:rgba(255,255,255,0.7);--glass-clear:rgba(255,255,255,0.3);--glass-holo:rgba(255,255,255,0.4);
+      --glow-border:rgba(0,120,212,0.3);--glow-shadow:rgba(0,120,212,0.1);--dot-green:rgba(26,127,55,0.5);
+      --npu:#1a7f37;--gpu:#0078d4;--img:#9333ea;--aud:#ea580c;
     }
-
-    /* ── Theme: Midnight ── */
     [data-theme="midnight"] {
-      --bg: #020817;
-      --surface: #0a1628;
-      --border: #1a2744;
-      --text: #c8d6e5;
-      --text-dim: #6b7fa3;
-      --text-muted: #3a4f6f;
-      --cyan: #4facfe;
-      --green: #00f5a0;
-      --settings-bg: #0a1628;
-      --settings-border: #1a2744;
-      --btn-bg: #132040;
-      --btn-active: #4facfe;
-      --glass-frosted: rgba(10, 22, 40, 0.7);
-      --glass-clear: rgba(10, 22, 40, 0.3);
-      --glass-holo: rgba(10, 22, 40, 0.4);
-      --glow-border: rgba(79, 172, 254, 0.3);
-      --glow-shadow: rgba(79, 172, 254, 0.1);
-      --dot-green: rgba(0, 245, 160, 0.5);
+      --bg:#020817;--surface:#0a1628;--border:#1a2744;--text:#c8d6e5;--text-dim:#6b7fa3;--text-muted:#3a4f6f;
+      --accent:#4facfe;--green:#00f5a0;--line:rgba(200,214,229,0.06);
+      --settings-bg:#0a1628;--settings-border:#1a2744;--btn-bg:#132040;--btn-active:#4facfe;
+      --glass-frosted:rgba(10,22,40,0.7);--glass-clear:rgba(10,22,40,0.3);--glass-holo:rgba(10,22,40,0.4);
+      --glow-border:rgba(79,172,254,0.3);--glow-shadow:rgba(79,172,254,0.1);--dot-green:rgba(0,245,160,0.5);
+      --npu:#00f5a0;--gpu:#4facfe;--img:#c084fc;--aud:#fdba74;
     }
-
-    /* ── Theme: Ember ── */
     [data-theme="ember"] {
-      --bg: #1a0a0a;
-      --surface: #2a1215;
-      --border: #4a2025;
-      --text: #f0d0c0;
-      --text-dim: #a08070;
-      --text-muted: #604540;
-      --cyan: #ff6b35;
-      --green: #ffd700;
-      --settings-bg: #2a1215;
-      --settings-border: #4a2025;
-      --btn-bg: #3a1a20;
-      --btn-active: #ff6b35;
-      --glass-frosted: rgba(42, 18, 21, 0.7);
-      --glass-clear: rgba(42, 18, 21, 0.3);
-      --glass-holo: rgba(42, 18, 21, 0.4);
-      --glow-border: rgba(255, 107, 53, 0.3);
-      --glow-shadow: rgba(255, 107, 53, 0.1);
-      --dot-green: rgba(255, 215, 0, 0.5);
+      --bg:#1a0a0a;--surface:#2a1215;--border:#4a2025;--text:#f0d0c0;--text-dim:#a08070;--text-muted:#604540;
+      --accent:#ff6b35;--green:#ffd700;--line:rgba(240,208,192,0.06);
+      --settings-bg:#2a1215;--settings-border:#4a2025;--btn-bg:#3a1a20;--btn-active:#ff6b35;
+      --glass-frosted:rgba(42,18,21,0.7);--glass-clear:rgba(42,18,21,0.3);--glass-holo:rgba(42,18,21,0.4);
+      --glow-border:rgba(255,107,53,0.3);--glow-shadow:rgba(255,107,53,0.1);--dot-green:rgba(255,215,0,0.5);
+      --npu:#ffd700;--gpu:#ff6b35;--img:#f472b6;--aud:#fbbf24;
     }
 
-    /* ── Glass Styles ── */
-    [data-glass="frosted"] .panel {
-      background: var(--glass-frosted);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-    }
-    [data-glass="clear"] .panel {
-      background: var(--glass-clear);
-      backdrop-filter: blur(2px);
-      -webkit-backdrop-filter: blur(2px);
-    }
-    [data-glass="solid"] .panel {
-      background: var(--surface);
-      backdrop-filter: none;
-    }
-    [data-glass="hologram"] .panel {
-      background: var(--glass-holo);
-      backdrop-filter: blur(8px) saturate(1.8);
-      -webkit-backdrop-filter: blur(8px) saturate(1.8);
-      border-color: var(--glow-border);
-      box-shadow: 0 0 20px var(--glow-shadow), inset 0 1px 0 rgba(255,255,255,0.05);
-    }
+    [data-glass="frosted"] .svc-card { background:var(--glass-frosted);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px); }
+    [data-glass="clear"] .svc-card { background:var(--glass-clear);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px); }
+    [data-glass="solid"] .svc-card { background:var(--surface); }
+    [data-glass="hologram"] .svc-card { background:var(--glass-holo);backdrop-filter:blur(8px) saturate(1.8);border-color:var(--glow-border);box-shadow:0 0 20px var(--glow-shadow),inset 0 1px 0 rgba(255,255,255,0.05); }
 
-    /* ── Wallpaper layer ── */
-    #wallpaper {
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 0;
-    }
+    #wallpaper { position:fixed;inset:0;pointer-events:none;z-index:0; }
+    * { margin:0;padding:0;box-sizing:border-box; }
+    body { background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;min-height:100vh;transition:background .3s,color .3s; }
+    .mono { font-family:'SF Mono','Cascadia Code','Fira Code',Consolas,monospace; }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    /* ── Header ── */
+    .header { position:relative;z-index:1;padding:1.5rem 2rem 0;text-align:center; }
+    .logo { font-size:1.6rem;font-weight:700;letter-spacing:.05em;margin-bottom:.5rem; }
+    .logo .chevron,.logo .name { color:var(--accent); }
+    .logo .underscore,.logo .core { color:var(--text); }
+    .logo .core { font-weight:900;letter-spacing:.1em; }
+    .hw-title { font-size:.7rem;color:var(--text-muted);letter-spacing:.12em;text-transform:uppercase;margin-bottom:.25rem; }
+    .hw-specs { display:flex;flex-wrap:wrap;justify-content:center;gap:.15rem 1rem;padding:.25rem 0; }
+    .hw-spec { font-size:.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em; }
+    .divider { width:100%;height:1px;background:var(--line);margin:.75rem 0 0; }
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.3s, color 0.3s;
-    }
+    /* ── Stats ── */
+    .stats-bar { position:relative;z-index:1;padding:.75rem 2rem;display:flex;flex-wrap:wrap;justify-content:center;gap:.25rem 1.5rem; }
+    .stat { display:inline-flex;align-items:baseline;gap:.35rem;white-space:nowrap; }
+    .stat-label { font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em; }
+    .stat-value { font-size:.85rem;font-weight:700;color:var(--accent);transition:color .3s; }
+    .stat-unit { font-size:.6rem;color:var(--text-muted); }
+    .stat-sep { color:var(--text-muted);opacity:.3;font-size:.7rem;margin:0 .15rem; }
 
-    .page {
-      text-align: center;
-      position: relative;
-      z-index: 1;
-      width: 100%;
-      max-width: 700px;
-      padding: 2rem;
-    }
+    /* ── Cards ── */
+    .main { position:relative;z-index:1;padding:2rem;display:flex;flex-direction:column;align-items:center; }
+    .cards { display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;width:100%;max-width:1000px;margin-bottom:2rem; }
 
-    .logo {
-      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
-      font-size: 2rem;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      margin-bottom: 3rem;
+    .svc-card {
+      border:1px solid var(--border);border-radius:12px;padding:1.25rem;
+      text-decoration:none;color:var(--text);transition:all .3s;display:block;
+      overflow:hidden;cursor:pointer;
     }
+    .svc-card:hover { border-color:var(--glow-border);box-shadow:0 8px 30px rgba(0,0,0,.3); }
 
-    .logo .chevron { color: var(--cyan); }
-    .logo .name { color: var(--cyan); }
-    .logo .underscore { color: var(--text); }
-    .logo .core { color: var(--text); font-weight: 900; letter-spacing: 0.1em; }
+    .card-header { display:flex;align-items:center;gap:.6rem;margin-bottom:.75rem; }
+    .card-dot { width:8px;height:8px;border-radius:50%;flex-shrink:0; }
+    .card-dot.on { background:var(--green);box-shadow:0 0 10px var(--dot-green); }
+    .card-dot.off { background:var(--text-muted); }
+    .card-title { font-size:1.1rem;font-weight:700; }
+    .card-meta { font-size:.65rem;color:var(--text-dim);margin-left:auto;white-space:nowrap; }
+    .card-hint { font-size:.55rem;color:var(--text-muted);text-align:center;margin-top:.75rem; }
 
-    .panels {
-      display: flex;
-      justify-content: center;
-      gap: 1.5rem;
-      margin-bottom: 3rem;
-    }
+    /* ── Pills ── */
+    .pills { display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.75rem; }
+    .pill { font-size:.5rem;padding:.15rem .45rem;border-radius:4px;border:1px solid var(--border);color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em; }
+    .pill.on { border-color:var(--accent);color:var(--accent); }
 
-    .panel {
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1rem 1.25rem;
-      text-decoration: none;
-      color: var(--text);
-      transition: all 0.3s;
-      display: inline-flex;
-      flex-direction: column;
-      align-items: center;
-    }
+    /* ── Model / Agent lists ── */
+    .list-sections { display:grid;grid-template-columns:1fr 1fr;gap:.5rem; }
+    .list-section { min-width:0; }
+    .sec-title { font-size:.5rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.3rem;display:flex;align-items:center;gap:.35rem; }
+    .sec-dot { width:4px;height:4px;border-radius:50%;flex-shrink:0; }
+    .sec-dot.npu { background:var(--npu); } .sec-dot.gpu { background:var(--gpu); }
+    .sec-dot.image { background:var(--img); } .sec-dot.audio { background:var(--aud); }
+    .sec-dot.agent { background:var(--accent); }
 
-    .panel:hover {
-      border-color: var(--glow-border);
-      transform: translateY(-2px);
-      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
-    }
+    .item-list { list-style:none; }
+    .item-list li { font-size:.6rem;color:var(--text-dim);padding:.1rem 0;display:flex;justify-content:space-between;gap:.4rem;min-width:0; }
+    .item-list .i-name { overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0; }
+    .item-list .i-meta { color:var(--text-muted);white-space:nowrap;flex-shrink:0; }
 
-    .panel-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      margin: 0 auto 0.5rem;
-    }
+    .footer { font-size:.7rem;color:var(--text-muted);text-align:center; }
 
-    .panel-dot.on { background: var(--green); box-shadow: 0 0 10px var(--dot-green); }
-    .panel-dot.off { background: var(--text-muted); }
+    /* ── Settings ── */
+    .settings-btn { position:fixed;bottom:1.5rem;right:1.5rem;width:40px;height:40px;border-radius:50%;border:1px solid var(--border);background:var(--settings-bg);color:var(--text-dim);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.2rem;transition:all .3s;z-index:100; }
+    .settings-btn:hover { color:var(--accent);border-color:var(--accent);transform:rotate(45deg); }
+    .settings-overlay { position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px); }
+    .settings-overlay.open { display:flex; }
+    .settings { background:var(--settings-bg);border:1px solid var(--settings-border);border-radius:12px;padding:1.5rem;width:340px;max-height:80vh;overflow-y:auto; }
+    .settings h2 { font-size:1rem;margin-bottom:1.25rem;color:var(--text); }
+    .settings-group { margin-bottom:1.25rem; }
+    .settings-group label { display:block;font-size:.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.5rem; }
+    .settings-options { display:flex;flex-wrap:wrap;gap:.4rem; }
+    .opt-btn { padding:.35rem .7rem;border-radius:6px;border:1px solid var(--border);background:var(--btn-bg);color:var(--text-dim);font-size:.75rem;cursor:pointer;transition:all .2s;font-family:inherit; }
+    .opt-btn:hover { border-color:var(--accent);color:var(--text); }
+    .opt-btn.active { background:var(--btn-active);color:#fff;border-color:var(--btn-active); }
+    .settings-close { width:100%;margin-top:.75rem;padding:.5rem;border-radius:8px;border:1px solid var(--border);background:var(--btn-bg);color:var(--text);font-size:.8rem;cursor:pointer;transition:all .2s;font-family:inherit; }
+    .settings-close:hover { border-color:var(--accent); }
 
-    .panel-name {
-      font-size: 1.2rem;
-      font-weight: 700;
-      margin-bottom: 0.25rem;
-    }
-
-    .panel-desc {
-      font-size: 0.8rem;
-      color: var(--text-dim);
-    }
-
-    .footer {
-      font-size: 0.7rem;
-      color: var(--text-muted);
-      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
-    }
-
-    /* ── Settings Gear ── */
-    .settings-btn {
-      position: fixed;
-      bottom: 1.5rem;
-      right: 1.5rem;
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      border: 1px solid var(--border);
-      background: var(--settings-bg);
-      color: var(--text-dim);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.2rem;
-      transition: all 0.3s;
-      z-index: 100;
-    }
-    .settings-btn:hover {
-      color: var(--cyan);
-      border-color: var(--cyan);
-      transform: rotate(45deg);
-    }
-
-    /* ── Settings Panel ── */
-    .settings-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.5);
-      z-index: 200;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      backdrop-filter: blur(4px);
-    }
-    .settings-overlay.open { display: flex; }
-
-    .settings {
-      background: var(--settings-bg);
-      border: 1px solid var(--settings-border);
-      border-radius: 12px;
-      padding: 1.5rem;
-      width: 340px;
-      max-height: 80vh;
-      overflow-y: auto;
-    }
-
-    .settings h2 {
-      font-size: 1rem;
-      margin-bottom: 1.25rem;
-      color: var(--text);
-      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
-    }
-
-    .settings-group {
-      margin-bottom: 1.25rem;
-    }
-
-    .settings-group label {
-      display: block;
-      font-size: 0.7rem;
-      color: var(--text-dim);
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin-bottom: 0.5rem;
-    }
-
-    .settings-options {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.4rem;
-    }
-
-    .opt-btn {
-      padding: 0.35rem 0.7rem;
-      border-radius: 6px;
-      border: 1px solid var(--border);
-      background: var(--btn-bg);
-      color: var(--text-dim);
-      font-size: 0.75rem;
-      cursor: pointer;
-      transition: all 0.2s;
-      font-family: inherit;
-    }
-    .opt-btn:hover {
-      border-color: var(--cyan);
-      color: var(--text);
-    }
-    .opt-btn.active {
-      background: var(--btn-active);
-      color: #fff;
-      border-color: var(--btn-active);
-    }
-
-    .settings-close {
-      width: 100%;
-      margin-top: 0.75rem;
-      padding: 0.5rem;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: var(--btn-bg);
-      color: var(--text);
-      font-size: 0.8rem;
-      cursor: pointer;
-      transition: all 0.2s;
-      font-family: inherit;
-    }
-    .settings-close:hover {
-      border-color: var(--cyan);
-    }
-
-    @media (max-width: 500px) {
-      .panels { flex-direction: column; align-items: center; }
-      .logo { font-size: 1.4rem; }
-      .settings { width: 90vw; }
+    @media (max-width:750px) {
+      .header { padding:1rem 1rem 0; } .logo { font-size:1.2rem; }
+      .stats-bar { padding:.5rem 1rem;gap:.2rem .8rem; }
+      .cards { grid-template-columns:1fr; }
+      .list-sections { grid-template-columns:1fr; }
+      .main { padding:1.5rem 1rem; }
+      .settings { width:90vw; }
     }
   </style>
 </head>
 <body>
   <div id="wallpaper"></div>
-  <div class="page">
-    <div class="logo">
-      <span class="chevron">&gt;&gt;</span>
-      <span class="name"> halo-ai</span><span class="underscore">_</span>
-      <span class="core"> CORE</span>
-    </div>
 
-    <div class="panels">
-      <a class="panel" id="panel-lemonade" href="/" target="_blank">
-        <div class="panel-dot off" id="dot-lemonade"></div>
-        <div class="panel-name">Lemonade</div>
-        <div class="panel-desc">LLM + media inference</div>
-      </a>
-      <a class="panel" id="panel-gaia" href="/" target="_blank">
-        <div class="panel-dot off" id="dot-gaia"></div>
-        <div class="panel-name">Gaia</div>
-        <div class="panel-desc">AI agents</div>
-      </a>
-    </div>
-
-    <div class="footer">designed and built by the architect</div>
+  <div class="header">
+    <div class="logo mono"><span class="chevron">&gt;&gt;</span><span class="name"> halo-ai</span><span class="underscore">_</span><span class="core"> CORE</span></div>
+    <div class="hw-title mono" id="hw-cpu">loading...</div>
+    <div class="hw-specs mono" id="hw-specs"></div>
+    <div class="divider"></div>
   </div>
 
-  <!-- Settings Gear -->
-  <button class="settings-btn" id="settings-open" title="Customize">&#9881;</button>
+  <div class="stats-bar mono">
+    <div class="stat"><span class="stat-label">cpu</span><span class="stat-value" id="s-cpu">--</span><span class="stat-unit">%</span></div><span class="stat-sep">|</span>
+    <div class="stat"><span class="stat-label">ram</span><span class="stat-value" id="s-ram">--</span><span class="stat-unit">%</span></div><span class="stat-sep">|</span>
+    <div class="stat"><span class="stat-label">disk</span><span class="stat-value" id="s-disk">--</span><span class="stat-unit">%</span></div><span class="stat-sep">|</span>
+    <div class="stat"><span class="stat-label">gpu</span><span class="stat-value" id="s-gpu">--</span><span class="stat-unit">%</span></div><span class="stat-sep">|</span>
+    <div class="stat"><span class="stat-label">temp</span><span class="stat-value" id="s-temp">--</span><span class="stat-unit">&deg;C</span></div><span class="stat-sep">|</span>
+    <div class="stat"><span class="stat-label">npu</span><span class="stat-value" id="s-npu">--</span></div><span class="stat-sep">|</span>
+    <div class="stat"><span class="stat-label">up</span><span class="stat-value" id="s-uptime">--</span></div>
+  </div>
 
-  <!-- Settings Panel -->
+  <div class="main">
+    <div class="cards">
+      <!-- Lemonade -->
+      <a class="svc-card" id="panel-lemonade" href="/" target="_blank">
+        <div class="card-header">
+          <div class="card-dot off" id="dot-lemonade"></div>
+          <span class="card-title">Lemonade</span>
+          <span class="card-meta mono" id="lemon-count">--</span>
+        </div>
+        <div class="pills mono" id="lemon-pills"><span class="pill">loading...</span></div>
+        <div class="list-sections mono" id="lemon-models"><div style="text-align:center;color:var(--text-muted);font-size:.6rem;grid-column:1/-1">loading catalog...</div></div>
+        <div class="card-hint mono">click to open Lemonade &rarr;</div>
+      </a>
+
+      <!-- Gaia -->
+      <a class="svc-card" id="panel-gaia" href="/" target="_blank">
+        <div class="card-header">
+          <div class="card-dot off" id="dot-gaia"></div>
+          <span class="card-title">Gaia</span>
+          <span class="card-meta mono" id="gaia-count">--</span>
+        </div>
+        <div class="pills mono" id="gaia-pills"><span class="pill">loading...</span></div>
+        <div class="list-sections mono" id="gaia-agents"><div style="text-align:center;color:var(--text-muted);font-size:.6rem;grid-column:1/-1">loading agents...</div></div>
+        <div class="card-hint mono">click to open Gaia &rarr;</div>
+      </a>
+    </div>
+
+    <div class="footer mono">designed and built by the architect</div>
+  </div>
+
+  <button class="settings-btn" id="settings-open" title="Customize">&#9881;</button>
   <div class="settings-overlay" id="settings-overlay">
     <div class="settings">
-      <h2>&gt;&gt; customize_</h2>
-
-      <div class="settings-group">
-        <label>Theme</label>
-        <div class="settings-options" data-setting="theme">
-          <button class="opt-btn" data-value="dark">Dark</button>
-          <button class="opt-btn" data-value="light">Light</button>
-          <button class="opt-btn" data-value="midnight">Midnight</button>
-          <button class="opt-btn" data-value="ember">Ember</button>
-        </div>
-      </div>
-
-      <div class="settings-group">
-        <label>Glass</label>
-        <div class="settings-options" data-setting="glass">
-          <button class="opt-btn" data-value="frosted">Frosted</button>
-          <button class="opt-btn" data-value="clear">Clear</button>
-          <button class="opt-btn" data-value="solid">Solid</button>
-          <button class="opt-btn" data-value="hologram">Hologram</button>
-        </div>
-      </div>
-
-      <div class="settings-group">
-        <label>Wallpaper</label>
-        <div class="settings-options" data-setting="wallpaper">
-          <button class="opt-btn" data-value="grid">Grid</button>
-          <button class="opt-btn" data-value="dots">Dots</button>
-          <button class="opt-btn" data-value="gradient">Gradient</button>
-          <button class="opt-btn" data-value="mesh">Mesh</button>
-          <button class="opt-btn" data-value="none">None</button>
-        </div>
-      </div>
-
+      <h2 class="mono">&gt;&gt; customize_</h2>
+      <div class="settings-group"><label>Theme</label><div class="settings-options" data-setting="theme">
+        <button class="opt-btn" data-value="dark">Dark</button><button class="opt-btn" data-value="light">Light</button>
+        <button class="opt-btn" data-value="midnight">Midnight</button><button class="opt-btn" data-value="ember">Ember</button>
+      </div></div>
+      <div class="settings-group"><label>Glass</label><div class="settings-options" data-setting="glass">
+        <button class="opt-btn" data-value="frosted">Frosted</button><button class="opt-btn" data-value="clear">Clear</button>
+        <button class="opt-btn" data-value="solid">Solid</button><button class="opt-btn" data-value="hologram">Hologram</button>
+      </div></div>
+      <div class="settings-group"><label>Wallpaper</label><div class="settings-options" data-setting="wallpaper">
+        <button class="opt-btn" data-value="grid">Grid</button><button class="opt-btn" data-value="dots">Dots</button>
+        <button class="opt-btn" data-value="gradient">Gradient</button><button class="opt-btn" data-value="mesh">Mesh</button>
+        <button class="opt-btn" data-value="none">None</button>
+      </div></div>
       <button class="settings-close" id="settings-close">Done</button>
     </div>
   </div>
 
   <script>
-    const H = window.location.hostname
-    const root = document.documentElement
+    const H = window.location.hostname, root = document.documentElement
 
-    // ── Service links ──
     document.getElementById('panel-lemonade').href = `http://${H}:13306`
     document.getElementById('panel-gaia').href = `http://${H}:4201`
 
-    // ── Health checks ──
     async function check(id, url) {
-      try {
-        await fetch(url, { mode: 'no-cors', signal: AbortSignal.timeout(3000) })
-        document.getElementById(id).className = 'panel-dot on'
-      } catch {
-        document.getElementById(id).className = 'panel-dot off'
-      }
+      try { await fetch(url,{mode:'no-cors',signal:AbortSignal.timeout(3000)}); document.getElementById(id).className='card-dot on' }
+      catch { document.getElementById(id).className='card-dot off' }
     }
-    check('dot-lemonade', `http://${H}:13306/`)
-    check('dot-gaia', `http://${H}:4201/`)
-    setInterval(() => {
-      check('dot-lemonade', `http://${H}:13306/`)
-      check('dot-gaia', `http://${H}:4201/`)
-    }, 10000)
+    check('dot-lemonade',`http://${H}:13306/`); check('dot-gaia',`http://${H}:4201/`)
+    setInterval(()=>{ check('dot-lemonade',`http://${H}:13306/`); check('dot-gaia',`http://${H}:4201/`) },10000)
 
-    // ── Settings persistence ──
-    const STORAGE_KEY = 'halo-dashboard-prefs'
+    function fmtB(b){const g=b/(1024**3);return g>=10?Math.round(g)+' GB':g.toFixed(1)+' GB'}
+    function fmtD(b){const t=b/(1024**4);return t>=1?t.toFixed(1)+' TB':fmtB(b)}
+    function fmtUp(s){const d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60);return d>0?d+'d '+h+'h':h>0?h+'h '+m+'m':m+'m'}
 
-    function loadPrefs() {
-      try {
-        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}
-      } catch { return {} }
+    let hwDone=false
+    async function fetchStats(){
+      try{
+        const r=await fetch('/api/stats',{signal:AbortSignal.timeout(3000)}),d=await r.json()
+        if(!hwDone&&d.hw){hwDone=true
+          document.getElementById('hw-cpu').textContent=d.hw.cpu
+          const s=[d.hw.cores+' threads',fmtB(d.hw.ram_total)+' RAM',d.hw.gpu!=='N/A'?d.hw.gpu:null,d.hw.vram_total>0?fmtB(d.hw.vram_total)+' VRAM':null,d.hw.npu!=='N/A'?d.hw.npu+' NPU':null,fmtD(d.hw.disk_total)+' SSD'].filter(Boolean)
+          document.getElementById('hw-specs').innerHTML=s.map(x=>`<span class="hw-spec">${x}</span>`).join('<span class="hw-spec" style="opacity:.3">&bull;</span>')
+        }
+        document.getElementById('s-cpu').textContent=d.cpu.usage.toFixed(1)
+        document.getElementById('s-ram').textContent=d.ram.percent.toFixed(1)
+        document.getElementById('s-disk').textContent=d.disk.percent.toFixed(1)
+        document.getElementById('s-gpu').textContent=d.gpu.usage
+        document.getElementById('s-temp').textContent=d.cpu.temp||d.gpu.temp||'--'
+        document.getElementById('s-npu').textContent=d.npu_online?'ONLINE':'OFF'
+        document.getElementById('s-uptime').textContent=fmtUp(d.uptime)
+      }catch{}
     }
+    fetchStats(); setInterval(fetchStats,3000)
 
-    function savePrefs(prefs) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs))
+    // ── Lemonade models ──
+    async function fetchModels(){
+      try{
+        const r=await fetch('/api/models',{signal:AbortSignal.timeout(5000)}),models=await r.json()
+        if(!models.length){document.getElementById('lemon-models').innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);font-size:.6rem">no models</div>';return}
+        const g={npu:[],gpu:[],image:[],audio:[]}
+        models.forEach(m=>(g[m.backend]||g.gpu).push(m))
+        document.getElementById('lemon-count').textContent=models.length+' models'
+        document.getElementById('lemon-pills').innerHTML=[
+          {k:'npu',l:'FLM / NPU',n:g.npu.length},{k:'gpu',l:'llama.cpp',n:g.gpu.length},
+          {k:'image',l:'sd.cpp',n:g.image.length},{k:'audio',l:'audio',n:g.audio.length}
+        ].map(b=>`<span class="pill ${b.n?'on':''}">${b.l} (${b.n})</span>`).join('')
+        const labels={npu:'NPU — AMD XDNA',gpu:'GPU — llama.cpp',image:'Image Gen',audio:'Audio / Voice'}
+        let h=''
+        for(const[k,label] of Object.entries(labels)){
+          if(!g[k].length) continue
+          h+=`<div class="list-section"><div class="sec-title"><span class="sec-dot ${k}"></span>${label}</div><ul class="item-list">`
+          g[k].forEach(m=>{const mt=[m.params,m.quant].filter(Boolean).join(' ');h+=`<li><span class="i-name">${m.name}</span>${mt?`<span class="i-meta">${mt}</span>`:''}</li>`})
+          h+='</ul></div>'
+        }
+        document.getElementById('lemon-models').innerHTML=h
+      }catch{document.getElementById('lemon-models').innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);font-size:.6rem">unavailable</div>'}
     }
+    fetchModels(); setInterval(fetchModels,30000)
 
-    // ── Wallpaper renderer (theme-aware) ──
-    const themeColors = {
-      dark:     { line: '230,237,243', accent: '0,212,255', green: '63,185,80' },
-      light:    { line: '31,35,40',    accent: '0,120,212', green: '26,127,55' },
-      midnight: { line: '200,214,229', accent: '79,172,254', green: '0,245,160' },
-      ember:    { line: '240,208,192', accent: '255,107,53', green: '255,215,0' }
+    // ── Gaia agents ──
+    async function fetchGaia(){
+      try{
+        const r=await fetch('/api/gaia',{signal:AbortSignal.timeout(5000)}),d=await r.json()
+        const status=d.status==='ok'?'online':'offline'
+        document.getElementById('gaia-count').textContent=d.agents.length+' agents'
+        document.getElementById('gaia-pills').innerHTML=[
+          `<span class="pill ${status==='online'?'on':''}">${status}</span>`,
+          `<span class="pill ${d.sessions>0?'on':''}">${d.sessions} sessions</span>`,
+          `<span class="pill">${d.messages} messages</span>`
+        ].join('')
+        // Split agents into two columns
+        const half=Math.ceil(d.agents.length/2)
+        const cols=[d.agents.slice(0,half),d.agents.slice(half)]
+        let h=''
+        cols.forEach(col=>{
+          h+='<div class="list-section"><div class="sec-title"><span class="sec-dot agent"></span>Agent Profiles</div><ul class="item-list">'
+          col.forEach(a=>{h+=`<li><span class="i-name">${a.display}</span><span class="i-meta">${a.ctx}</span></li>`})
+          h+='</ul></div>'
+        })
+        document.getElementById('gaia-agents').innerHTML=h
+      }catch{document.getElementById('gaia-agents').innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);font-size:.6rem">unavailable</div>'}
     }
+    fetchGaia(); setInterval(fetchGaia,30000)
 
-    function applyWallpaper() {
-      const wp = root.getAttribute('data-wallpaper')
-      const theme = root.getAttribute('data-theme')
-      const colors = themeColors[theme] || themeColors.dark
-      const el = document.getElementById('wallpaper')
+    // ── Settings ──
+    const SK='halo-dashboard-prefs'
+    function lp(){try{return JSON.parse(localStorage.getItem(SK))||{}}catch{return{}}}
+    function sp(p){localStorage.setItem(SK,JSON.stringify(p))}
+    const tc={dark:{l:'230,237,243',a:'0,212,255',g:'63,185,80'},light:{l:'31,35,40',a:'0,120,212',g:'26,127,55'},midnight:{l:'200,214,229',a:'79,172,254',g:'0,245,160'},ember:{l:'240,208,192',a:'255,107,53',g:'255,215,0'}}
 
-      if (wp === 'none') {
-        el.style.backgroundImage = 'none'
-        return
-      }
-
-      let bg, size = 'auto', pos = '0 0'
-      if (wp === 'grid') {
-        const c = colors.line
-        bg = `linear-gradient(rgba(${c},0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(${c},0.03) 1px, transparent 1px)`
-        size = '60px 60px'
-      } else if (wp === 'dots') {
-        bg = `radial-gradient(rgba(${colors.line},0.07) 1px, transparent 1px)`
-        size = '30px 30px'
-      } else if (wp === 'gradient') {
-        bg = `radial-gradient(ellipse at 30% 20%, rgba(${colors.accent},0.1) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, rgba(${colors.green},0.07) 0%, transparent 50%)`
-      } else if (wp === 'mesh') {
-        const a = `rgba(${colors.accent},0.05)`
-        bg = `linear-gradient(30deg, ${a} 12%, transparent 12.5%, transparent 87%, ${a} 87.5%), linear-gradient(150deg, ${a} 12%, transparent 12.5%, transparent 87%, ${a} 87.5%), linear-gradient(30deg, ${a} 12%, transparent 12.5%, transparent 87%, ${a} 87.5%), linear-gradient(150deg, ${a} 12%, transparent 12.5%, transparent 87%, ${a} 87.5%)`
-        size = '80px 140px'
-        pos = '0 0, 0 0, 40px 70px, 40px 70px'
-      }
-
-      el.style.backgroundImage = bg || 'none'
-      el.style.backgroundSize = size
-      el.style.backgroundPosition = pos
+    function aw(){
+      const wp=root.getAttribute('data-wallpaper'),t=root.getAttribute('data-theme'),c=tc[t]||tc.dark,el=document.getElementById('wallpaper')
+      if(wp==='none'){el.style.backgroundImage='none';return}
+      let bg,sz='auto',ps='0 0'
+      if(wp==='grid'){bg=`linear-gradient(rgba(${c.l},.03) 1px,transparent 1px),linear-gradient(90deg,rgba(${c.l},.03) 1px,transparent 1px)`;sz='60px 60px'}
+      else if(wp==='dots'){bg=`radial-gradient(rgba(${c.l},.07) 1px,transparent 1px)`;sz='30px 30px'}
+      else if(wp==='gradient'){bg=`radial-gradient(ellipse at 30% 20%,rgba(${c.a},.1) 0%,transparent 50%),radial-gradient(ellipse at 70% 80%,rgba(${c.g},.07) 0%,transparent 50%)`}
+      else if(wp==='mesh'){const a=`rgba(${c.a},.05)`;bg=`linear-gradient(30deg,${a} 12%,transparent 12.5%,transparent 87%,${a} 87.5%),linear-gradient(150deg,${a} 12%,transparent 12.5%,transparent 87%,${a} 87.5%),linear-gradient(30deg,${a} 12%,transparent 12.5%,transparent 87%,${a} 87.5%),linear-gradient(150deg,${a} 12%,transparent 12.5%,transparent 87%,${a} 87.5%)`;sz='80px 140px';ps='0 0,0 0,40px 70px,40px 70px'}
+      el.style.backgroundImage=bg||'none';el.style.backgroundSize=sz;el.style.backgroundPosition=ps
     }
-
-    function applySetting(key, value) {
-      root.setAttribute(`data-${key}`, value)
-      const prefs = loadPrefs()
-      prefs[key] = value
-      savePrefs(prefs)
-
-      // Update active buttons
-      document.querySelectorAll(`[data-setting="${key}"] .opt-btn`).forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.value === value)
-      })
-
-      // Theme or wallpaper change → re-render wallpaper with correct colors
-      if (key === 'theme' || key === 'wallpaper') applyWallpaper()
+    function as(k,v){
+      root.setAttribute(`data-${k}`,v);const p=lp();p[k]=v;sp(p)
+      document.querySelectorAll(`[data-setting="${k}"] .opt-btn`).forEach(b=>b.classList.toggle('active',b.dataset.value===v))
+      if(k==='theme'||k==='wallpaper')aw()
     }
-
-    // Load saved prefs on init
-    const saved = loadPrefs()
-    if (saved.theme) applySetting('theme', saved.theme)
-    if (saved.glass) applySetting('glass', saved.glass)
-    if (saved.wallpaper) applySetting('wallpaper', saved.wallpaper)
-
-    // Mark current active buttons
-    ;['theme', 'glass', 'wallpaper'].forEach(key => {
-      const current = root.getAttribute(`data-${key}`)
-      document.querySelectorAll(`[data-setting="${key}"] .opt-btn`).forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.value === current)
-      })
-    })
-
-    // ── Settings panel open/close ──
-    const overlay = document.getElementById('settings-overlay')
-    document.getElementById('settings-open').addEventListener('click', () => {
-      overlay.classList.add('open')
-    })
-    document.getElementById('settings-close').addEventListener('click', () => {
-      overlay.classList.remove('open')
-    })
-    overlay.addEventListener('click', e => {
-      if (e.target === overlay) overlay.classList.remove('open')
-    })
-
-    // ── Option buttons ──
-    document.querySelectorAll('.opt-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const setting = btn.closest('[data-setting]').dataset.setting
-        applySetting(setting, btn.dataset.value)
-      })
-    })
-
-    // Apply wallpaper on init
-    applyWallpaper()
+    const sv=lp();if(sv.theme)as('theme',sv.theme);if(sv.glass)as('glass',sv.glass);if(sv.wallpaper)as('wallpaper',sv.wallpaper)
+    ;['theme','glass','wallpaper'].forEach(k=>{const v=root.getAttribute(`data-${k}`);document.querySelectorAll(`[data-setting="${k}"] .opt-btn`).forEach(b=>b.classList.toggle('active',b.dataset.value===v))})
+    const ov=document.getElementById('settings-overlay')
+    document.getElementById('settings-open').addEventListener('click',()=>ov.classList.add('open'))
+    document.getElementById('settings-close').addEventListener('click',()=>ov.classList.remove('open'))
+    ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open')})
+    document.querySelectorAll('.opt-btn').forEach(b=>b.addEventListener('click',()=>as(b.closest('[data-setting]').dataset.setting,b.dataset.value)))
+    aw()
   </script>
 </body>
 </html>
