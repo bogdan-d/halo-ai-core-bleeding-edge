@@ -267,7 +267,7 @@ fi
 # 1. BASE PACKAGES
 # ============================================================
 step "Base Packages"
-BASE_PKGS="base-devel git openssh networkmanager curl wget htop nano nodejs npm github-cli"
+BASE_PKGS="base-devel git openssh networkmanager curl wget htop nano nodejs npm"
 
 if $DRY_RUN; then
     info "Would install: $BASE_PKGS"
@@ -462,15 +462,28 @@ if ! $SKIP_LLAMA; then
 
             log "Downloading vLLM ROCm ($VLLM_TAG)..."
             VLLM_TMP=$(mktemp -d)
-            gh release download "$VLLM_TAG" \
-                -R lemonade-sdk/vllm-rocm \
-                -D "$VLLM_TMP" >> "$LOG_FILE" 2>&1 &
-            spinner $! "Downloading vLLM ROCm ($VLLM_TAG — this is ~3 GB)..."
+            VLLM_REPO="lemonade-sdk/vllm-rocm"
 
-            log "Extracting vLLM ROCm..."
-            mkdir -p "$VLLM_DIR"
-            cat "$VLLM_TMP"/*.tar.gz | tar xzf - -C "$VLLM_DIR" 2>&1 &
-            spinner $! "Extracting vLLM ROCm..."
+            # Get download URLs from GitHub API (no auth needed for public repos)
+            ASSET_URLS=$(curl -sL "https://api.github.com/repos/${VLLM_REPO}/releases/tags/${VLLM_TAG}" \
+                | grep -o '"browser_download_url": *"[^"]*"' \
+                | grep -o 'https://[^"]*')
+
+            if [ -z "$ASSET_URLS" ]; then
+                warn "Could not find vLLM release assets for $VLLM_TAG"
+                warn "Install manually: gh release download $VLLM_TAG -R $VLLM_REPO"
+            else
+                # Download all parts
+                (for url in $ASSET_URLS; do
+                    curl -sL -o "$VLLM_TMP/$(basename "$url")" "$url"
+                done) >> "$LOG_FILE" 2>&1 &
+                spinner $! "Downloading vLLM ROCm ($VLLM_TAG — this is ~3 GB)..."
+
+                log "Extracting vLLM ROCm..."
+                mkdir -p "$VLLM_DIR"
+                cat "$VLLM_TMP"/*.tar.gz | tar xzf - -C "$VLLM_DIR" >> "$LOG_FILE" 2>&1 &
+                spinner $! "Extracting vLLM ROCm..."
+            fi
             rm -rf "$VLLM_TMP"
 
             # Fix permissions on bundled binaries
