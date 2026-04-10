@@ -210,6 +210,10 @@
     .agent-info { min-width:0; }
     .agent-name { font-size:.7rem;font-weight:700;color:var(--text); }
     .agent-desc { font-size:.55rem;color:var(--text-muted); }
+    .agent-status { font-size:.5rem;color:var(--text-muted);margin-left:auto;white-space:nowrap; }
+    .agent-status.on { color:var(--green); }
+    .agent-card { cursor:pointer; }
+    .agent-card:hover .agent-name { color:var(--accent); }
 
     /* ── Terminal ── */
     .term-wrap { width:100%;max-width:1000px;margin-bottom:2rem; }
@@ -361,37 +365,48 @@
     <div class="agents-wrap">
       <div class="agents-title mono">agents</div>
       <div class="agents-grid" id="agents-grid">
-        <div class="agent-card svc-card">
+        <div class="agent-card svc-card" data-agent="sentinel" onclick="openAgent(this)">
+          <div class="agent-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+          <div class="agent-info"><div class="agent-name">Sentinel</div><div class="agent-desc">Security & intrusion detection</div></div>
+          <div class="agent-status mono" id="st-sentinel">ready</div>
+        </div>
+        <div class="agent-card svc-card" data-agent="watchdog" onclick="openAgent(this)">
+          <div class="agent-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+          <div class="agent-info"><div class="agent-name">Watchdog</div><div class="agent-desc">Service health & auto-restart</div></div>
+          <div class="agent-status mono" id="st-watchdog">ready</div>
+        </div>
+        <div class="agent-card svc-card" data-agent="muse" onclick="openAgent(this)">
           <div class="agent-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="15.5" r="2.5"/><path d="M8 17V5l12-2v12"/></svg></div>
           <div class="agent-info"><div class="agent-name">Muse / Piper</div><div class="agent-desc">Entertainment & media</div></div>
+          <div class="agent-status mono on" id="st-muse">active</div>
         </div>
-        <div class="agent-card svc-card">
-          <div class="agent-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
-          <div class="agent-info"><div class="agent-name">Chat</div><div class="agent-desc">RAG + vision assistant</div></div>
+        <div class="agent-card svc-card" data-agent="bouncer" onclick="openAgent(this)">
+          <div class="agent-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+          <div class="agent-info"><div class="agent-name">Bouncer</div><div class="agent-desc">Network & SSH guard</div></div>
+          <div class="agent-status mono" id="st-bouncer">ready</div>
         </div>
-        <div class="agent-card svc-card">
-          <div class="agent-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div>
-          <div class="agent-info"><div class="agent-name">Code</div><div class="agent-desc">Autonomous coding</div></div>
+        <div class="agent-card svc-card" data-agent="medic" onclick="openAgent(this)">
+          <div class="agent-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+          <div class="agent-info"><div class="agent-name">Medic</div><div class="agent-desc">Disk, RAM, temp alerts</div></div>
+          <div class="agent-status mono" id="st-medic">ready</div>
         </div>
-        <div class="agent-card svc-card">
-          <div class="agent-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg></div>
-          <div class="agent-info"><div class="agent-name">Talk</div><div class="agent-desc">Voice-enabled chat</div></div>
+        <div class="agent-card svc-card" data-agent="scribe" onclick="openAgent(this)">
+          <div class="agent-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+          <div class="agent-info"><div class="agent-name">Scribe</div><div class="agent-desc">Logs, audit & backups</div></div>
+          <div class="agent-status mono" id="st-scribe">ready</div>
         </div>
-        <div class="agent-card svc-card">
-          <div class="agent-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>
-          <div class="agent-info"><div class="agent-name">RAG</div><div class="agent-desc">Document Q&A</div></div>
-        </div>
-        <div class="agent-card svc-card">
-          <div class="agent-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
-          <div class="agent-info"><div class="agent-name">Vision</div><div class="agent-desc">Image understanding</div></div>
-        </div>
-        <div class="agent-card svc-card">
-          <div class="agent-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
-          <div class="agent-info"><div class="agent-name">Blender</div><div class="agent-desc">3D content generation</div></div>
-        </div>
-        <div class="agent-card svc-card">
-          <div class="agent-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M12 12h.01"/><path d="M17 12h.01"/><path d="M7 12h.01"/></svg></div>
-          <div class="agent-info"><div class="agent-name">Docker</div><div class="agent-desc">Container management</div></div>
+      </div>
+    </div>
+
+    <!-- Agent Config Overlay -->
+    <div class="settings-overlay" id="agent-overlay">
+      <div class="settings" style="width:400px;">
+        <h2 class="mono" id="agent-config-title">&gt;&gt; agent_</h2>
+        <div id="agent-config-body" style="font-size:.75rem;color:var(--text-dim);margin-bottom:1rem;"></div>
+        <div id="agent-config-options"></div>
+        <div style="display:flex;gap:.5rem;margin-top:1rem;">
+          <button class="settings-close" id="agent-install-btn" style="flex:1;background:var(--accent);color:#fff;border-color:var(--accent);">Install</button>
+          <button class="settings-close" id="agent-close-btn" style="flex:1;">Close</button>
         </div>
       </div>
     </div>
@@ -936,6 +951,81 @@
 
     genPrompt.addEventListener('keydown', e => {
       if (e.key === 'Enter') genBtn.click()
+    })
+
+    // ── Agent Config ──
+    const agentProfiles = {
+      sentinel: {
+        title: 'Sentinel',
+        desc: 'Monitors system security. Scans logs for intrusion attempts, failed SSH logins, suspicious processes. Alerts you immediately.',
+        tasks: ['SSH brute-force detection', 'Failed login monitoring', 'Process anomaly scanning', 'Firewall rule enforcement', 'Security audit reports']
+      },
+      watchdog: {
+        title: 'Watchdog',
+        desc: 'Keeps all services alive. Monitors Lemonade, Gaia, Caddy, stats server. Auto-restarts crashed services. Reports uptime.',
+        tasks: ['Service health checks (every 30s)', 'Auto-restart on crash', 'Uptime tracking', 'Resource usage alerts', 'Service dependency ordering']
+      },
+      muse: {
+        title: 'Muse / Piper',
+        desc: 'Your entertainment AI. Voice interaction, image generation, video creation. Piper speaks with an Irish accent and handles all creative requests.',
+        tasks: ['Voice conversation (Whisper + LLM + Kokoro)', 'Image generation (SD-Turbo / Flux)', 'Video frame generation', 'Music recommendations', 'Creative brainstorming']
+      },
+      bouncer: {
+        title: 'Bouncer',
+        desc: 'Network perimeter guard. Monitors SSH connections, manages firewall rules, blocks suspicious IPs. Your digital doorman.',
+        tasks: ['Active SSH session tracking', 'IP blocklist management', 'Port scan detection', 'WireGuard peer monitoring', 'Connection rate limiting']
+      },
+      medic: {
+        title: 'Medic',
+        desc: 'Hardware health monitor. Watches CPU/GPU temps, disk space, RAM pressure, SMART status. Warns before things break.',
+        tasks: ['Temperature monitoring & thermal throttle alerts', 'Disk space warnings (< 10%)', 'RAM pressure detection', 'SMART disk health', 'NPU/GPU error monitoring']
+      },
+      scribe: {
+        title: 'Scribe',
+        desc: 'The record keeper. Manages system logs, creates audit trails, handles automated backups. Nothing gets lost.',
+        tasks: ['Journal log rotation & archival', 'Configuration backup (daily)', 'Change audit trail', 'Disk usage reports', 'Backup verification']
+      }
+    }
+
+    const agentOverlay = document.getElementById('agent-overlay')
+    let currentAgent = null
+
+    function openAgent(el) {
+      const id = el.dataset.agent
+      const profile = agentProfiles[id]
+      if (!profile) return
+      currentAgent = id
+
+      document.getElementById('agent-config-title').textContent = `>> ${profile.title.toLowerCase()}_`
+      document.getElementById('agent-config-body').textContent = profile.desc
+
+      const optionsEl = document.getElementById('agent-config-options')
+      optionsEl.innerHTML = '<div style="font-size:.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.5rem;">capabilities</div>' +
+        profile.tasks.map(t => `<div style="font-size:.7rem;color:var(--text-dim);padding:.2rem 0;display:flex;align-items:center;gap:.4rem;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>${t}</div>`).join('')
+
+      const installBtn = document.getElementById('agent-install-btn')
+      const statusEl = document.getElementById('st-' + id)
+      if (statusEl && statusEl.classList.contains('on')) {
+        installBtn.textContent = 'Running'
+        installBtn.style.opacity = '0.5'
+      } else {
+        installBtn.textContent = 'Install'
+        installBtn.style.opacity = '1'
+      }
+
+      agentOverlay.classList.add('open')
+    }
+
+    document.getElementById('agent-close-btn').addEventListener('click', () => agentOverlay.classList.remove('open'))
+    agentOverlay.addEventListener('click', e => { if (e.target === agentOverlay) agentOverlay.classList.remove('open') })
+
+    document.getElementById('agent-install-btn').addEventListener('click', () => {
+      if (!currentAgent) return
+      const statusEl = document.getElementById('st-' + currentAgent)
+      if (statusEl) { statusEl.textContent = 'active'; statusEl.classList.add('on') }
+      const btn = document.getElementById('agent-install-btn')
+      btn.textContent = 'Running'
+      btn.style.opacity = '0.5'
     })
 
     // ── Terminal ──
