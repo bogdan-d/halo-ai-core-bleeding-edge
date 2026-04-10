@@ -2,45 +2,28 @@
 	admin "unix//run/caddy/admin.socket"
 }
 
-# Dashboard on HTTPS (required for browser mic access)
-https://10.0.0.10 {
-	tls internal
-	handle /api/transcribe {
-		reverse_proxy 127.0.0.1:13305 {
-			header_up Host {upstream_hostport}
-		}
-		rewrite * /v1/audio/transcriptions
-	}
-	handle /api/* {
-		reverse_proxy 127.0.0.1:5090
-		uri strip_prefix /api
-	}
-	root * /srv/halo-dashboard
-	file_server
-}
-
-# Also serve on HTTP for non-mic access
 :80 {
-	handle /api/transcribe {
-		reverse_proxy 127.0.0.1:13305 {
-			header_up Host {upstream_hostport}
-		}
-		rewrite * /v1/audio/transcriptions
+	# Stats JSON (static file, updated every 5s)
+	handle /stats.json {
+		root * /srv/halo-dashboard
+		file_server
+		header Cache-Control "no-cache"
 	}
-	handle /api/* {
-		reverse_proxy 127.0.0.1:5090
-		uri strip_prefix /api
+
+	# Lemonade API proxy
+	handle /v1/* {
+		reverse_proxy 127.0.0.1:13305
 	}
+
+	# Dashboard (static files)
 	root * /srv/halo-dashboard
 	file_server
 }
 
-# Lemonade full UI + API proxied on :13306 (external)
 :13306 {
 	reverse_proxy 127.0.0.1:13305
 }
 
-# Gaia full UI proxied on :4201 (external)
 :4201 {
 	reverse_proxy 127.0.0.1:4200
 }

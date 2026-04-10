@@ -510,7 +510,7 @@
     let hwDone=false
     async function fetchStats(){
       try{
-        const r=await fetch('/api/stats',{signal:AbortSignal.timeout(3000)}),d=await r.json()
+        const r=await fetch('/stats.json',{signal:AbortSignal.timeout(3000)}),d=await r.json()
         if(!hwDone&&d.hw){hwDone=true
           document.getElementById('hw-cpu').textContent=d.hw.cpu
           const s=[d.hw.cores+' threads',fmtB(d.hw.ram_total)+' RAM',d.hw.gpu!=='N/A'?d.hw.gpu:null,d.hw.vram_total>0?fmtB(d.hw.vram_total)+' VRAM':null,d.hw.npu!=='N/A'?d.hw.npu+' NPU':null,fmtD(d.hw.disk_total)+' SSD'].filter(Boolean)
@@ -541,7 +541,7 @@
     // ── Lemonade models ──
     async function fetchModels(){
       try{
-        const r=await fetch('/api/models',{signal:AbortSignal.timeout(5000)}),models=await r.json()
+        const r=await fetch('/v1/models',{signal:AbortSignal.timeout(5000)}),models=await r.json()
         if(!models.length){document.getElementById('lemon-models').innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);font-size:.6rem">no models</div>';return}
         const g={npu:[],gpu:[],image:[],audio:[]}
         models.forEach(m=>(g[m.backend]||g.gpu).push(m))
