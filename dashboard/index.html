@@ -321,15 +321,16 @@
     <!-- Muse — Piper: Entertainment Package (Voice + Image + Video) -->
     <div class="gen-wrap">
       <div class="gen-panel svc-card">
-        <div class="gen-header">
-          <span class="gen-title">Muse <span style="font-size:.6rem;color:var(--text-muted);font-weight:400">aka Piper</span></span>
-          <div class="gen-tabs mono">
-            <button class="gen-tab active" data-mode="voice">Piper</button>
-            <button class="gen-tab" data-mode="will">Will</button>
-            <button class="gen-tab" data-mode="image">Image</button>
-            <button class="gen-tab" data-mode="video">Video</button>
-          </div>
+        <div class="gen-header" style="flex-direction:row;">
+          <span class="gen-title">Muse</span>
+          <div style="flex:1;"></div>
         </div>
+        <!-- Tabs on left side, content on right -->
+        <div style="display:flex;gap:1rem;">
+          <div class="gen-tabs mono" id="muse-tabs" style="flex-direction:column;min-width:60px;">
+            <button class="gen-tab active" data-mode="voice">Piper</button>
+          </div>
+          <div style="flex:1;min-width:0;">
 
         <!-- Voice (Piper) -->
         <div id="muse-voice" style="text-align:center;padding:1rem 0;">
@@ -379,6 +380,8 @@
           </div>
           <div class="gen-status mono" id="gen-status"></div>
         </div>
+          </div><!-- end content column -->
+        </div><!-- end flex row -->
       </div>
     </div>
 
@@ -452,6 +455,17 @@
       </div>
     </div>
 
+    <!-- Nerd Stats -->
+    <div style="width:100%;max-width:1000px;margin-bottom:1rem;">
+      <div class="stats-bar mono" style="padding:.4rem 0;gap:.2rem 1rem;font-size:.55rem;">
+        <div class="stat"><span class="stat-label" style="font-size:.5rem;">gpu mem</span><span class="stat-value" style="font-size:.7rem;" id="s-vram">--</span><span class="stat-unit">MB</span></div><span class="stat-sep">|</span>
+        <div class="stat"><span class="stat-label" style="font-size:.5rem;">gpu temp</span><span class="stat-value" style="font-size:.7rem;" id="s-gputemp">--</span><span class="stat-unit">&deg;C</span></div><span class="stat-sep">|</span>
+        <div class="stat"><span class="stat-label" style="font-size:.5rem;">gpu busy</span><span class="stat-value" style="font-size:.7rem;" id="s-gpubusy">--</span><span class="stat-unit">%</span></div><span class="stat-sep">|</span>
+        <div class="stat"><span class="stat-label" style="font-size:.5rem;">net in</span><span class="stat-value" style="font-size:.7rem;" id="s-netin">--</span><span class="stat-unit">GB</span></div><span class="stat-sep">|</span>
+        <div class="stat"><span class="stat-label" style="font-size:.5rem;">net out</span><span class="stat-value" style="font-size:.7rem;" id="s-netout">--</span><span class="stat-unit">GB</span></div>
+      </div>
+    </div>
+
     <div class="footer mono">designed and built by the architect</div>
   </div>
 
@@ -509,6 +523,17 @@
         document.getElementById('s-temp').textContent=d.cpu.temp||d.gpu.temp||'--'
         document.getElementById('s-npu').textContent=d.npu_online?'ONLINE':'OFF'
         document.getElementById('s-uptime').textContent=fmtUp(d.uptime)
+        // Nerd stats
+        if(d.gpu){
+          const vramMB=Math.round(d.gpu.vram_used/(1024*1024))
+          document.getElementById('s-vram').textContent=vramMB
+          document.getElementById('s-gputemp').textContent=d.gpu.temp||'--'
+          document.getElementById('s-gpubusy').textContent=d.gpu.usage
+        }
+        if(d.net){
+          document.getElementById('s-netin').textContent=(d.net.recv/(1024**3)).toFixed(1)
+          document.getElementById('s-netout').textContent=(d.net.sent/(1024**3)).toFixed(1)
+        }
       }catch{}
     }
     fetchStats(); setInterval(fetchStats,3000)
@@ -791,7 +816,7 @@
                   { role: 'system', content: '/no_think You are Piper, the entertainment AI on halo-ai. Your friends call you P. You have a warm Irish personality — witty, charming, creative. You handle conversation, image generation, video creation, music, and entertainment. Keep responses concise — 2-3 sentences max. When someone wants to create something visual, confirm what they want with enthusiasm. Always respond directly, never think out loud.' },
                   { role: 'user', content: text }
                 ],
-                max_tokens: 200,
+                max_tokens: 2000,
                 temperature: 0.7
               }),
               signal: AbortSignal.timeout(120000)
@@ -803,12 +828,26 @@
               playError(); return
             }
             const d = await r.json()
-            reply = d.choices?.[0]?.message?.content?.trim() || d.choices?.[0]?.message?.reasoning_content?.trim() || ''
-            // Strip thinking tags if present
-            reply = reply.replace(/<think>[\s\S]*?<\/think>/g, '').trim()
+            const msg = d.choices?.[0]?.message || {}
+            // Content first — that's the actual response
+            reply = (msg.content || '').trim()
+            // If empty, check reasoning but extract only the final answer
+            if (!reply && msg.reasoning_content) {
+              let rc = msg.reasoning_content.trim()
+              // Strip all <think>...</think> blocks
+              rc = rc.replace(/<think>[\s\S]*?<\/think>/g, '').trim()
+              // Strip common thinking patterns
+              rc = rc.replace(/^(Thinking Process|Let me think|I need to|Step \d)[\s\S]*?(Final Answer|Response|Output):\s*/i, '').trim()
+              // If it still looks like internal reasoning, don't show it
+              if (rc && !rc.startsWith('1.') && !rc.startsWith('*') && rc.length > 5) {
+                reply = rc
+              }
+            }
+            // Final cleanup — remove any remaining think tags
+            reply = reply.replace(/<\/?think>/g, '').replace(/\n{3,}/g, '\n\n').trim()
             if (!reply) {
-              appendLog('ai', 'empty response — model may still be loading')
-              setVoiceState('idle', 'no response — try again')
+              appendLog('ai', 'thinking... try again in a moment')
+              setVoiceState('idle', 'model is thinking — try again')
               playError(); return
             }
           } catch (e) {
@@ -820,26 +859,10 @@
           appendLog('ai', reply)
           setVoiceState('speaking', 'speaking...')
 
-          // TTS — speak the reply
-          setVoiceState('speaking', 'piper is speaking...')
-          try {
-            const r = await fetch(`http://${H}:13306/v1/audio/speech`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ model: 'kokoro-v1', input: reply, voice: 'bf_emma' }),
-              signal: AbortSignal.timeout(30000)
-            })
-            if (r.ok) {
-              const audioBlob = await r.blob()
-              const audioUrl = URL.createObjectURL(audioBlob)
-              const audio = new Audio(audioUrl)
-              audio.onended = () => { setVoiceState('idle', 'piper is ready'); URL.revokeObjectURL(audioUrl) }
-              audio.onerror = () => { setVoiceState('idle', reply); URL.revokeObjectURL(audioUrl) }
-              await audio.play()
-            } else {
-              // TTS failed — show text response instead
-              setVoiceState('idle', `piper: ${reply}`)
-            }
+          // Text response only — no TTS playback
+          setVoiceState('idle', 'piper is ready')
+          playTone(880, 0.12, 0.08)
+          if (false) { // TTS disabled — text feedback only
           } catch {
             setVoiceState('idle', reply)
           }
@@ -850,10 +873,10 @@
         startVolMonitor(stream)
         mediaRecorder.start(250)
 
-        // Auto-stop after 15 seconds
+        // Auto-stop after 30 seconds
         setTimeout(() => {
           if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop()
-        }, 15000)
+        }, 30000)
 
       } catch (e) {
         setVoiceState('idle', 'mic access denied — check browser permissions')
@@ -867,29 +890,35 @@
     const genOut = document.getElementById('gen-output')
     const genStatus = document.getElementById('gen-status')
 
+    // Tab switching
+    function switchMuseTab(mode) {
+      document.querySelectorAll('.gen-tab').forEach(t => t.classList.remove('active'))
+      document.querySelector(`.gen-tab[data-mode="${mode}"]`)?.classList.add('active')
+      genMode = mode
+      const panels = ['muse-voice','muse-will','muse-create']
+      panels.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none' })
+      if (mode === 'voice') document.getElementById('muse-voice').style.display = 'block'
+      else if (mode === 'will') document.getElementById('muse-will').style.display = 'block'
+      else {
+        document.getElementById('muse-create').style.display = 'block'
+        genPrompt.placeholder = mode === 'image' ? 'tell piper what to create...' : 'describe the video you want...'
+      }
+    }
     document.querySelectorAll('.gen-tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('.gen-tab').forEach(t => t.classList.remove('active'))
-        tab.classList.add('active')
-        genMode = tab.dataset.mode
-        const voicePanel = document.getElementById('muse-voice')
-        const willPanel = document.getElementById('muse-will')
-        const createPanel = document.getElementById('muse-create')
-        voicePanel.style.display = 'none'
-        willPanel.style.display = 'none'
-        createPanel.style.display = 'none'
-        if (genMode === 'voice') {
-          voicePanel.style.display = 'block'
-        } else if (genMode === 'will') {
-          willPanel.style.display = 'block'
-        } else {
-          createPanel.style.display = 'block'
-          genPrompt.placeholder = genMode === 'image'
-            ? 'tell piper what to create...'
-            : 'describe the video you want...'
-        }
-      })
+      tab.addEventListener('click', () => switchMuseTab(tab.dataset.mode))
     })
+
+    // Add tabs dynamically when agents are installed
+    function addMuseTab(mode, label) {
+      const tabs = document.getElementById('muse-tabs')
+      if (tabs.querySelector(`[data-mode="${mode}"]`)) return
+      const btn = document.createElement('button')
+      btn.className = 'gen-tab'
+      btn.dataset.mode = mode
+      btn.textContent = label
+      btn.addEventListener('click', () => switchMuseTab(mode))
+      tabs.appendChild(btn)
+    }
 
     async function generateImage(prompt) {
       genBtn.disabled = true
@@ -1091,6 +1120,9 @@
         await new Promise(r => setTimeout(r, 500))
         playTone(1100, 0.15, 0.12)
         if (statusEl) { statusEl.textContent = 'active'; statusEl.classList.add('on') }
+        // Add tab to Muse panel if relevant
+        if (currentAgent === 'will') addMuseTab('will', 'Will')
+        if (currentAgent === 'muse') { addMuseTab('image', 'Image'); addMuseTab('video', 'Video') }
         btn.innerHTML = '&#10003; Installed'
         btn.style.background = 'var(--green)'
         btn.style.borderColor = 'var(--green)'
