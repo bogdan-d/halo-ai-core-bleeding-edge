@@ -390,6 +390,11 @@
           <div class="agent-info"><div class="agent-name">Medic</div><div class="agent-desc">Disk, RAM, temp alerts</div></div>
           <div class="agent-status mono" id="st-medic">ready</div>
         </div>
+        <div class="agent-card svc-card" data-agent="will" onclick="openAgent(this)">
+          <div class="agent-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
+          <div class="agent-info"><div class="agent-name">Will</div><div class="agent-desc">Stack admin & voice ops</div></div>
+          <div class="agent-status mono" id="st-will">ready</div>
+        </div>
         <div class="agent-card svc-card" data-agent="scribe" onclick="openAgent(this)">
           <div class="agent-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
           <div class="agent-info"><div class="agent-name">Scribe</div><div class="agent-desc">Logs, audit & backups</div></div>
@@ -980,6 +985,11 @@
         desc: 'Hardware health monitor. Watches CPU/GPU temps, disk space, RAM pressure, SMART status. Warns before things break.',
         tasks: ['Temperature monitoring & thermal throttle alerts', 'Disk space warnings (< 10%)', 'RAM pressure detection', 'SMART disk health', 'NPU/GPU error monitoring']
       },
+      will: {
+        title: 'Will',
+        desc: 'Your system administrator. The only agent that can modify the stack. Voice-interactive — tell Will what you need and he handles installs, upgrades, downloads, and agent management. Speaks back to confirm actions.',
+        tasks: ['Install / upgrade / remove agents', 'Download new models', 'System package management', 'Service configuration', 'Voice-controlled stack operations', 'Rollback on failure']
+      },
       scribe: {
         title: 'Scribe',
         desc: 'The record keeper. Manages system logs, creates audit trails, handles automated backups. Nothing gets lost.',
@@ -1005,12 +1015,16 @@
 
       const installBtn = document.getElementById('agent-install-btn')
       const statusEl = document.getElementById('st-' + id)
+      installBtn.style.background = ''
+      installBtn.style.borderColor = ''
       if (statusEl && statusEl.classList.contains('on')) {
-        installBtn.textContent = 'Running'
-        installBtn.style.opacity = '0.5'
+        installBtn.textContent = 'Uninstall'
+        installBtn.style.background = 'transparent'
+        installBtn.style.color = 'var(--accent)'
       } else {
         installBtn.textContent = 'Install'
-        installBtn.style.opacity = '1'
+        installBtn.style.background = 'var(--accent)'
+        installBtn.style.color = '#fff'
       }
 
       agentOverlay.classList.add('open')
@@ -1019,13 +1033,45 @@
     document.getElementById('agent-close-btn').addEventListener('click', () => agentOverlay.classList.remove('open'))
     agentOverlay.addEventListener('click', e => { if (e.target === agentOverlay) agentOverlay.classList.remove('open') })
 
-    document.getElementById('agent-install-btn').addEventListener('click', () => {
+    document.getElementById('agent-install-btn').addEventListener('click', async () => {
       if (!currentAgent) return
-      const statusEl = document.getElementById('st-' + currentAgent)
-      if (statusEl) { statusEl.textContent = 'active'; statusEl.classList.add('on') }
       const btn = document.getElementById('agent-install-btn')
-      btn.textContent = 'Running'
-      btn.style.opacity = '0.5'
+      const statusEl = document.getElementById('st-' + currentAgent)
+
+      if (statusEl && statusEl.classList.contains('on')) {
+        // Uninstall
+        btn.textContent = 'Removing...'
+        btn.style.opacity = '0.7'
+        btn.disabled = true
+        playTone(330, 0.2, 0.1)
+        await new Promise(r => setTimeout(r, 1200))
+        statusEl.textContent = 'ready'
+        statusEl.classList.remove('on')
+        playTone(880, 0.15, 0.1)
+        btn.textContent = 'Removed'
+        await new Promise(r => setTimeout(r, 800))
+        agentOverlay.classList.remove('open')
+        btn.disabled = false
+      } else {
+        // Install
+        btn.innerHTML = '<span style="display:inline-block;animation:mic-spin 1s linear infinite;">&#9881;</span> Installing...'
+        btn.style.opacity = '0.9'
+        btn.disabled = true
+        playTone(660, 0.15, 0.1)
+        await new Promise(r => setTimeout(r, 1500))
+        playTone(880, 0.15, 0.1)
+        await new Promise(r => setTimeout(r, 500))
+        playTone(1100, 0.15, 0.12)
+        if (statusEl) { statusEl.textContent = 'active'; statusEl.classList.add('on') }
+        btn.innerHTML = '&#10003; Installed'
+        btn.style.background = 'var(--green)'
+        btn.style.borderColor = 'var(--green)'
+        await new Promise(r => setTimeout(r, 1200))
+        agentOverlay.classList.remove('open')
+        btn.disabled = false
+        btn.style.background = ''
+        btn.style.borderColor = ''
+      }
     })
 
     // ── Terminal ──
