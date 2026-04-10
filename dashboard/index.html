@@ -159,7 +159,6 @@
     .mic-btn:hover { background:rgba(from var(--accent) r g b / .1);background:var(--glass-clear); }
     .mic-btn.listening {
       border-color:var(--green);color:var(--green);
-      animation:mic-pulse 1.5s ease-in-out infinite;
     }
     .mic-btn.processing {
       border-color:var(--accent);color:var(--accent);
@@ -181,13 +180,8 @@
     .mic-rings {
       position:absolute;inset:-15px;border-radius:50%;
       border:1px solid currentColor;opacity:0;
-      animation:ring-expand 2s ease-out infinite;
-    }
-    .mic-rings.r2 { animation-delay:.5s; }
-    .mic-rings.r3 { animation-delay:1s; }
-    @keyframes ring-expand {
-      0% { transform:scale(.8);opacity:.6; }
-      100% { transform:scale(1.6);opacity:0; }
+      transition:transform .1s,opacity .1s;
+      transform:scale(.8);
     }
 
     .voice-status { font-size:.75rem;color:var(--text-dim);margin-top:1rem;min-height:1.2em; }
@@ -565,6 +559,8 @@
     let voiceState = 'idle'
     let mediaRecorder = null
     let audioChunks = []
+    let analyser = null
+    let volAnimFrame = null
     const actx = new (window.AudioContext || window.webkitAudioContext)()
 
     // Audio feedback tones
@@ -583,6 +579,35 @@
     function playListenStart() { playTone(880, 0.15, 0.12); setTimeout(() => playTone(1320, 0.15, 0.12), 120) }
     function playListenStop() { playTone(1320, 0.15, 0.1); setTimeout(() => playTone(880, 0.15, 0.1), 120) }
     function playError() { playTone(330, 0.3, 0.1) }
+
+    // Volume-driven ring animation
+    function startVolMonitor(stream) {
+      const src = actx.createMediaStreamSource(stream)
+      analyser = actx.createAnalyser()
+      analyser.fftSize = 256
+      src.connect(analyser)
+      const data = new Uint8Array(analyser.frequencyBinCount)
+      function tick() {
+        if (voiceState !== 'listening') { rings.forEach(r => { r.style.opacity = '0'; r.style.transform = 'scale(.8)' }); return }
+        analyser.getByteFrequencyData(data)
+        let sum = 0; for (let i = 0; i < data.length; i++) sum += data[i]
+        const vol = sum / data.length / 255 // 0-1
+        const show = vol > 0.05
+        rings[0].style.opacity = show ? String(Math.min(vol * 3, 0.7)) : '0'
+        rings[0].style.transform = `scale(${0.9 + vol * 0.8})`
+        rings[1].style.opacity = show && vol > 0.15 ? String(Math.min(vol * 2, 0.5)) : '0'
+        rings[1].style.transform = `scale(${1.0 + vol * 0.6})`
+        rings[2].style.opacity = show && vol > 0.3 ? String(Math.min(vol * 1.5, 0.3)) : '0'
+        rings[2].style.transform = `scale(${1.1 + vol * 0.5})`
+        volAnimFrame = requestAnimationFrame(tick)
+      }
+      tick()
+    }
+
+    function stopVolMonitor() {
+      if (volAnimFrame) cancelAnimationFrame(volAnimFrame)
+      rings.forEach(r => { r.style.opacity = '0'; r.style.transform = 'scale(.8)' })
+    }
 
     function setVoiceState(state, msg) {
       voiceState = state
@@ -665,6 +690,7 @@
         mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data) }
 
         mediaRecorder.onstop = async () => {
+          stopVolMonitor()
           stream.getTracks().forEach(t => t.stop())
           playListenStop()
 
@@ -712,6 +738,7 @@
           // LLM
           let reply = ''
           try {
+            setVoiceState('processing', `muse is thinking about: "${text.substring(0, 40)}..."`)
             const r = await fetch(`http://${H}:13306/v1/chat/completions`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -723,19 +750,32 @@
                 ],
                 max_tokens: 200
               }),
-              signal: AbortSignal.timeout(60000)
+              signal: AbortSignal.timeout(120000)
             })
+            if (!r.ok) {
+              const errBody = await r.text()
+              appendLog('ai', `error ${r.status}: ${errBody.substring(0, 100)}`)
+              setVoiceState('idle', `LLM error ${r.status} — load a model in Lemonade first`)
+              playError(); return
+            }
             const d = await r.json()
-            reply = d.choices?.[0]?.message?.content?.trim() || 'no response'
+            reply = d.choices?.[0]?.message?.content?.trim() || ''
+            if (!reply) {
+              appendLog('ai', 'empty response from model')
+              setVoiceState('idle', 'no response — model may still be loading')
+              playError(); return
+            }
           } catch (e) {
-            setVoiceState('idle', 'LLM failed — is a model loaded?')
-            return
+            appendLog('ai', `error: ${e.message}`)
+            setVoiceState('idle', `LLM failed: ${e.message}`)
+            playError(); return
           }
 
           appendLog('ai', reply)
           setVoiceState('speaking', 'speaking...')
 
-          // TTS
+          // TTS — speak the reply
+          setVoiceState('speaking', 'muse is speaking...')
           try {
             const r = await fetch(`http://${H}:13306/v1/audio/speech`, {
               method: 'POST',
@@ -748,9 +788,11 @@
               const audioUrl = URL.createObjectURL(audioBlob)
               const audio = new Audio(audioUrl)
               audio.onended = () => { setVoiceState('idle', 'muse is ready'); URL.revokeObjectURL(audioUrl) }
-              audio.play()
+              audio.onerror = () => { setVoiceState('idle', reply); URL.revokeObjectURL(audioUrl) }
+              await audio.play()
             } else {
-              setVoiceState('idle', reply)
+              // TTS failed — show text response instead
+              setVoiceState('idle', `muse: ${reply}`)
             }
           } catch {
             setVoiceState('idle', reply)
@@ -759,6 +801,7 @@
 
         playListenStart()
         setVoiceState('listening', 'muse is listening... click to stop')
+        startVolMonitor(stream)
         mediaRecorder.start(250)
 
         // Auto-stop after 15 seconds
