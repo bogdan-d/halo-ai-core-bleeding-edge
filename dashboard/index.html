@@ -323,7 +323,7 @@
     <!-- Voice Interaction -->
     <div class="voice-wrap">
       <div class="voice-panel svc-card">
-        <div class="voice-title mono">talk to halo-ai</div>
+        <div class="voice-title mono">muse</div>
         <button class="mic-btn" id="mic-btn" title="Click to speak">
           <svg id="mic-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
@@ -335,7 +335,7 @@
           <div class="mic-rings r2" id="ring2"></div>
           <div class="mic-rings r3" id="ring3"></div>
         </button>
-        <div class="voice-status mono" id="voice-status">click the mic to start</div>
+        <div class="voice-status mono" id="voice-status">click the mic to talk to muse</div>
         <div class="voice-transcript mono" id="voice-log"></div>
       </div>
     </div>
@@ -562,14 +562,32 @@
     const voiceStatus = document.getElementById('voice-status')
     const voiceLog = document.getElementById('voice-log')
     const rings = [document.getElementById('ring1'), document.getElementById('ring2'), document.getElementById('ring3')]
-    let voiceState = 'idle' // idle, listening, processing, speaking
+    let voiceState = 'idle'
     let mediaRecorder = null
     let audioChunks = []
+    const actx = new (window.AudioContext || window.webkitAudioContext)()
+
+    // Audio feedback tones
+    function playTone(freq, dur, vol) {
+      const osc = actx.createOscillator()
+      const gain = actx.createGain()
+      osc.type = 'sine'
+      osc.frequency.value = freq
+      gain.gain.value = vol || 0.15
+      osc.connect(gain)
+      gain.connect(actx.destination)
+      osc.start()
+      gain.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur)
+      osc.stop(actx.currentTime + dur)
+    }
+    function playListenStart() { playTone(880, 0.15, 0.12); setTimeout(() => playTone(1320, 0.15, 0.12), 120) }
+    function playListenStop() { playTone(1320, 0.15, 0.1); setTimeout(() => playTone(880, 0.15, 0.1), 120) }
+    function playError() { playTone(330, 0.3, 0.1) }
 
     function setVoiceState(state, msg) {
       voiceState = state
       micBtn.className = 'mic-btn' + (state !== 'idle' ? ' ' + state : '')
-      voiceStatus.textContent = msg || ''
+      voiceStatus.textContent = msg || 'click the mic to talk to muse'
       rings.forEach(r => r.style.display = state === 'listening' ? 'block' : 'none')
       const svgs = {
         idle: '<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/>',
@@ -584,51 +602,110 @@
       voiceLog.classList.add('show')
       const div = document.createElement('div')
       div.className = who === 'you' ? 'vt-you' : 'vt-ai'
-      div.textContent = `${who === 'you' ? '> ' : 'AI: '}${text}`
+      div.textContent = `${who === 'you' ? '> ' : 'muse: '}${text}`
       voiceLog.appendChild(div)
       voiceLog.scrollTop = voiceLog.scrollHeight
     }
 
+    // Convert webm blob to WAV (16kHz mono 16-bit) for Whisper
+    async function blobToWav(blob) {
+      const arrayBuf = await blob.arrayBuffer()
+      const audioBuffer = await actx.decodeAudioData(arrayBuf)
+      const sampleRate = 16000
+      const numChannels = 1
+      const offCtx = new OfflineAudioContext(numChannels, audioBuffer.duration * sampleRate, sampleRate)
+      const src = offCtx.createBufferSource()
+      src.buffer = audioBuffer
+      src.connect(offCtx.destination)
+      src.start()
+      const rendered = await offCtx.startRendering()
+      const samples = rendered.getChannelData(0)
+      const pcm = new Int16Array(samples.length)
+      for (let i = 0; i < samples.length; i++) {
+        const s = Math.max(-1, Math.min(1, samples[i]))
+        pcm[i] = s < 0 ? s * 0x8000 : s * 0x7FFF
+      }
+      const wavBuf = new ArrayBuffer(44 + pcm.length * 2)
+      const view = new DataView(wavBuf)
+      const writeStr = (o, s) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)) }
+      writeStr(0, 'RIFF')
+      view.setUint32(4, 36 + pcm.length * 2, true)
+      writeStr(8, 'WAVE')
+      writeStr(12, 'fmt ')
+      view.setUint32(16, 16, true)
+      view.setUint16(20, 1, true)
+      view.setUint16(22, 1, true)
+      view.setUint32(24, sampleRate, true)
+      view.setUint32(28, sampleRate * 2, true)
+      view.setUint16(32, 2, true)
+      view.setUint16(34, 16, true)
+      writeStr(36, 'data')
+      view.setUint32(40, pcm.length * 2, true)
+      const pcmBytes = new Uint8Array(wavBuf, 44)
+      const pcmView = new Uint8Array(pcm.buffer)
+      pcmBytes.set(pcmView)
+      return new Blob([wavBuf], { type: 'audio/wav' })
+    }
+
     micBtn.addEventListener('click', async () => {
       if (voiceState === 'listening') {
-        // Stop recording
         if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop()
         return
       }
       if (voiceState !== 'idle') return
 
+      // Resume AudioContext (browsers require user gesture)
+      if (actx.state === 'suspended') await actx.resume()
+
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true } })
         audioChunks = []
-        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' })
+        mediaRecorder = new MediaRecorder(stream)
 
         mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data) }
 
         mediaRecorder.onstop = async () => {
           stream.getTracks().forEach(t => t.stop())
-          const blob = new Blob(audioChunks, { type: 'audio/webm' })
+          playListenStop()
 
-          if (blob.size < 1000) { setVoiceState('idle', 'too short — try again'); return }
+          const webmBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType })
+          if (webmBlob.size < 500) { setVoiceState('idle', 'too short — try again'); playError(); return }
 
-          // Transcribe
+          // Convert to WAV for Whisper
           setVoiceState('processing', 'transcribing...')
+          let wavBlob
+          try {
+            wavBlob = await blobToWav(webmBlob)
+          } catch (e) {
+            setVoiceState('idle', 'audio conversion failed'); playError(); return
+          }
+
           const formData = new FormData()
-          formData.append('file', blob, 'audio.webm')
+          formData.append('file', wavBlob, 'audio.wav')
           formData.append('model', 'Whisper-Large-v3-Turbo')
 
           let text = ''
           try {
-            const r = await fetch(`http://${H}:13306/v1/audio/transcriptions`, {
+            const r = await fetch(`/api/transcribe`, {
               method: 'POST', body: formData, signal: AbortSignal.timeout(30000)
             })
-            const d = await r.json()
-            text = (d.text || '').trim()
+            if (!r.ok) {
+              // Fallback to Lemonade direct
+              const r2 = await fetch(`http://${H}:13306/v1/audio/transcriptions`, {
+                method: 'POST', body: formData, signal: AbortSignal.timeout(30000)
+              })
+              const d2 = await r2.json()
+              text = (d2.text || '').trim()
+            } else {
+              const d = await r.json()
+              text = (d.text || '').trim()
+            }
           } catch (e) {
             setVoiceState('idle', 'transcription failed — is Whisper loaded?')
-            return
+            playError(); return
           }
 
-          if (!text || text.length < 2) { setVoiceState('idle', 'no speech detected — try again'); return }
+          if (!text || text.length < 2) { setVoiceState('idle', 'no speech detected — try again'); playError(); return }
           appendLog('you', text)
           setVoiceState('processing', 'thinking...')
 
@@ -641,7 +718,7 @@
               body: JSON.stringify({
                 model: 'Qwen3.5-35B-A3B-GGUF',
                 messages: [
-                  { role: 'system', content: 'You are a helpful AI assistant on halo-ai. Be concise — 2-3 sentences max.' },
+                  { role: 'system', content: 'You are Muse, the creative AI assistant on halo-ai. You handle entertainment, media creation, image generation, video, music, and conversation. You are friendly, creative, and concise — 2-3 sentences max. When the user wants to create an image or video, confirm what they want and describe it vividly.' },
                   { role: 'user', content: text }
                 ],
                 max_tokens: 200
@@ -670,7 +747,7 @@
               const audioBlob = await r.blob()
               const audioUrl = URL.createObjectURL(audioBlob)
               const audio = new Audio(audioUrl)
-              audio.onended = () => { setVoiceState('idle', 'click the mic to speak again'); URL.revokeObjectURL(audioUrl) }
+              audio.onended = () => { setVoiceState('idle', 'muse is ready'); URL.revokeObjectURL(audioUrl) }
               audio.play()
             } else {
               setVoiceState('idle', reply)
@@ -680,8 +757,9 @@
           }
         }
 
-        setVoiceState('listening', 'listening... click mic to stop')
-        mediaRecorder.start()
+        playListenStart()
+        setVoiceState('listening', 'muse is listening... click to stop')
+        mediaRecorder.start(250)
 
         // Auto-stop after 15 seconds
         setTimeout(() => {
