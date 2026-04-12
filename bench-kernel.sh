@@ -205,3 +205,106 @@ print('  └─────────────────────┴�
 echo ""
 echo -e "  ${B}\"Designed and built by the architect.\"${NC}"
 echo ""
+
+# ── Rotate old results (keep 5 days) ──
+echo -e "${C}═══ CLEANUP ═══${NC}"
+CUTOFF=$(date -d "5 days ago" +%Y%m%d 2>/dev/null || date -v-5d +%Y%m%d 2>/dev/null || echo "")
+if [ -n "$CUTOFF" ]; then
+    DELETED=0
+    for OLD in "${OUTPUT_DIR}"/kernel-*.json; do
+        [ -f "$OLD" ] || continue
+        FILE_DATE=$(basename "$OLD" | grep -oP '\d{8}' | head -1)
+        if [ -n "$FILE_DATE" ] && [ "$FILE_DATE" -lt "$CUTOFF" ]; then
+            rm -f "$OLD"
+            DELETED=$((DELETED + 1))
+        fi
+    done
+    for OLD in "${OUTPUT_DIR}"/real-world-*.json; do
+        [ -f "$OLD" ] || continue
+        FILE_DATE=$(stat -c %Y "$OLD" 2>/dev/null)
+        CUTOFF_TS=$(date -d "5 days ago" +%s 2>/dev/null || echo 0)
+        if [ "$FILE_DATE" -lt "$CUTOFF_TS" ] 2>/dev/null; then
+            rm -f "$OLD"
+            DELETED=$((DELETED + 1))
+        fi
+    done
+    if [ "$DELETED" -gt 0 ]; then
+        echo -e "  ${G}✓${NC} Rotated $DELETED old benchmark files (>5 days)"
+    else
+        echo -e "  ${G}✓${NC} No old benchmarks to rotate"
+    fi
+fi
+
+# ── Update wiki Benchmarks.md with latest results ──
+WIKI_FILE="$(cd "$(dirname "$0")" && pwd)/docs/wiki/Benchmarks.md"
+if [ -f "$WIKI_FILE" ]; then
+    python3 << 'WIKI_UPDATE'
+import json, os, glob, datetime
+
+script_dir = os.path.dirname(os.path.abspath("${RESULT_FILE}"))
+result_file = "${RESULT_FILE}"
+wiki_file = os.path.join(os.path.dirname(script_dir), "docs", "wiki", "Benchmarks.md")
+
+if not os.path.exists(wiki_file) or not os.path.exists(result_file):
+    exit(0)
+
+with open(result_file) as f:
+    data = json.load(f)
+
+kernel = data.get("kernel", "unknown")
+model = data.get("model", "unknown")
+ts = data.get("timestamp", "")[:10]
+sys_info = data.get("system", {})
+
+# Build the new dated section
+lines = []
+lines.append(f"### {ts}: Kernel {kernel}, Lemonade {sys_info.get('lemonade', '10.2.0')}")
+lines.append("")
+lines.append(f"**Model:** {model} | **Governor:** {sys_info.get('governor', 'performance')} | **GPU:** {sys_info.get('gpu', 'Radeon 8060S')}")
+lines.append("")
+lines.append("| Test | Prompt t/s | Gen t/s | TTFT | Total |")
+lines.append("|------|-----------|---------|------|-------|")
+for b in data.get("benchmarks", []):
+    lines.append(f"| {b['name']} | {b['prompt_tps']} | **{b['gen_tps']}** | {b['ttft_ms']}ms | {b['total_ms']}ms |")
+lines.append("")
+new_section = "\n".join(lines)
+
+# Read existing wiki
+with open(wiki_file) as f:
+    wiki = f.read()
+
+# Find the marker and insert after it
+marker = "## The Numbers"
+if marker in wiki:
+    parts = wiki.split(marker, 1)
+    # Find the next --- or ## after the marker section
+    rest = parts[1]
+    # Insert new dated section right after the marker line
+    insert_pos = rest.find("\n---")
+    if insert_pos == -1:
+        insert_pos = rest.find("\n## ", 1)
+    if insert_pos > 0:
+        updated = parts[0] + marker + rest[:insert_pos] + "\n\n" + new_section + rest[insert_pos:]
+    else:
+        updated = parts[0] + marker + "\n\n" + new_section + rest
+else:
+    # No marker — prepend after first heading
+    updated = wiki + "\n\n" + new_section
+
+# Rotate: keep only last 5 dated sections (### YYYY-MM-DD:)
+import re
+dated_pattern = r'### \d{4}-\d{2}-\d{2}:.*?(?=### \d{4}-\d{2}-\d{2}:|---|\Z)'
+dated_sections = list(re.finditer(dated_pattern, updated, re.DOTALL))
+if len(dated_sections) > 5:
+    # Remove oldest (they appear in order, newest should be last inserted)
+    to_remove = dated_sections[:-5]
+    for match in reversed(to_remove):
+        updated = updated[:match.start()] + updated[match.end():]
+
+with open(wiki_file, "w") as f:
+    f.write(updated)
+WIKI_UPDATE
+    echo -e "  ${G}✓${NC} Wiki Benchmarks.md updated with latest results"
+fi
+
+echo ""
