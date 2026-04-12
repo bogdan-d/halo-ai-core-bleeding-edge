@@ -30,7 +30,7 @@ this repo takes a stable halo-ai-core install and pushes it to the limit:
 - **linux 7.0-rc kernel** — XDNA2 driver support for the NPU
 - **npu acceleration** — offload workloads to the neural processing unit via Lemonade SDK + FLM
 - **experimental compiler flags** — zen 5 avx-512, polly optimizations
-- **bleeding edge rocm** — nightly builds, flash attention, aotriton
+- **llama.cpp vulkan only** — zen 5 avx-512 optimized rebuild *(h/t u/Look_0ver_There)*
 - **speculative decoding** — draft model acceleration
 - **1-bit model support** — bonsai Q1_0 models via prism-ml llama.cpp fork
 
@@ -74,7 +74,7 @@ NPU: not available. FLM: not available. kernel 6.19 lacks XDNA2 driver.
 
 ### bleeding edge (this repo, kernel 7.0-rc7 + zen5 flags)
 
-**GPU — ROCm + Vulkan (llama-bench)**
+**GPU — Vulkan only (h/t u/Look_0ver_There)**
 
 | model | test | t/s |
 |-------|------|-----|
@@ -148,57 +148,20 @@ paru -S linux-mainline linux-mainline-headers
 
 ### 2. zen 5 compiler optimizations
 
-rebuild llama.cpp with flags from [paudley/ai-notes](https://github.com/paudley/ai-notes):
+rebuild llama.cpp Vulkan only with Zen 5 flags *(h/t u/Look_0ver_There — no HIP, no ROCm for llama.cpp)*:
 
 ```bash
 cmake -B build \
-    -DGGML_HIP=ON \
     -DGGML_VULKAN=ON \
-    -DGGML_HIP_ROCWMMA_FATTN=ON \
-    -DAMDGPU_TARGETS=gfx1151 \
+    -DGGML_HIP=OFF \
+    -DGGML_CUDA=OFF \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_HIP_COMPILER=/opt/rocm/bin/amdclang++ \
+    -DLLAMA_CURL=ON \
     -DCMAKE_C_FLAGS="-march=znver5 -mtune=znver5 -O3 -mavx512f -mavx512vl -mavx512bw -mavx512dq" \
     -DCMAKE_CXX_FLAGS="-march=znver5 -mtune=znver5 -O3 -mavx512f -mavx512vl -mavx512bw -mavx512dq"
 ```
 
-### 3. MMQ kernel patch (RDNA 3.5)
-
-register pressure fix for gfx1151 wave32 — from [llama.cpp #21284](https://github.com/ggml-org/llama.cpp/issues/21284):
-
-```bash
-# in ggml/src/ggml-cuda/mmq.cu — reduce from 64/128/8 to:
-mmq_x = 48
-mmq_y = 64
-nwarps = 4
-```
-
-### 4. fast math intrinsics
-
-replace `expf()` with `__expf()` in fattn-common.cuh for faster MoE routing:
-
-```bash
-# only replace standalone expf, not __expf
-sed -i 's/\([^_]\)expf(\([^)]*\))/\1__expf(\2)/g' ggml/src/ggml-cuda/fattn-common.cuh
-```
-
-### 5. rocWMMA flash attention
-
-hardware matrix multiply for attention computation:
-
-```bash
--DGGML_HIP_ROCWMMA_FATTN=ON
-```
-
-### 6. HIPBLASLT + AOTriton
-
-environment variables that double prompt throughput:
-
-```bash
-export ROCBLAS_USE_HIPBLASLT=1
-export TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1
-export HSA_OVERRIDE_GFX_VERSION=11.5.1
-```
+ROCm/HIP stays installed for vLLM, FLM (NPU), PyTorch — just not for llama.cpp inference.
 
 ### 7. lemonade SDK + FLM NPU backend
 
@@ -285,12 +248,9 @@ you're back to stable in 30 seconds. that's why we snapshot first.
 
 | optimization | credit |
 |-------------|--------|
-| MMQ kernel fix (RDNA 3.5 register pressure) | [paudley/ai-notes](https://github.com/paudley/ai-notes), [llama.cpp #21284](https://github.com/ggml-org/llama.cpp/issues/21284) |
+| Vulkan-only for llama.cpp (community catch) | u/Look_0ver_There |
 | Zen 5 AVX-512 compiler flags | [paudley/ai-notes](https://github.com/paudley/ai-notes) |
-| rocWMMA flash attention | [AMD ROCm team](https://github.com/ROCm/TheRock) |
-| HIPBLASLT acceleration | AMD math libraries team |
-| AOTriton attention speedup | AMD Triton team |
-| Fast math intrinsics | CUDA/HIP optimization community |
+| Strix Halo toolboxes + 150 benchmarks | [kyuz0/amd-strix-halo-toolboxes](https://github.com/kyuz0/amd-strix-halo-toolboxes) |
 | XDNA2 NPU driver (amdxdna) | AMD Linux kernel team |
 | Lemonade SDK + FLM backend | [TurnkeyML / FastFlow FM](https://github.com/lemonade-sdk/lemonade) |
 | Bonsai 1-bit models | [Prism ML / Mintplex Labs](https://huggingface.co/prism-ml) |

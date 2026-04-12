@@ -6,7 +6,9 @@
 # "I know kung fu." — Neo, The Matrix
 #
 # Core services for AMD Strix Halo bare-metal AI platform
-# Components: ROCm, Caddy, vLLM ROCm, Lemonade SDK, Gaia SDK, Claude Code
+# Components: ROCm (GPU drivers), Caddy, Lemonade (lemond), Claude Code
+# llama.cpp runs Vulkan only — ROCm/HIP is for vLLM, FLM (NPU), PyTorch
+# All services route through lemond's built-in router on :13305
 # ============================================================
 set -euo pipefail
 
@@ -16,19 +18,20 @@ if [[ "$HOME" =~ [[:space:]] ]]; then
     exit 1
 fi
 
-VERSION="0.9.1"
+VERSION="1.0.0"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Ensure USER is set (may be unset in containers/systemd)
+USER="${USER:-$(whoami)}"
+export USER
 LOG_DIR="${HOME}/.local/log"
 mkdir -p "$LOG_DIR"
 LOG_FILE="${LOG_DIR}/halo-ai-core-install.log"
 touch "$LOG_FILE" && chmod 600 "$LOG_FILE"
-trap 'rm -f "${WG_TMP:-}" "${CLIENT_CONF:-}" 2>/dev/null' EXIT INT TERM
+trap 'rm -f "${WG_TMP:-}" "${CLIENT_CONF:-}" 2>/dev/null; rm -rf "${YAY_TMPDIR:-}" "${WG_KEY_DIR:-}" 2>/dev/null' EXIT INT TERM
 DRY_RUN=false
 SKIP_ROCM=false
 SKIP_CADDY=false
-SKIP_LLAMA=false
 SKIP_LEMONADE=false
-SKIP_GAIA=false
 SKIP_CLAUDE=false
 PYTHON_VERSION="3.13.12"
 
@@ -49,9 +52,7 @@ usage() {
     echo "  --yes-all       Skip all confirmation prompts"
     echo "  --skip-rocm     Skip ROCm installation"
     echo "  --skip-caddy    Skip Caddy installation"
-    echo "  --skip-llama    Skip vLLM ROCm download"
-    echo "  --skip-lemonade Skip Lemonade SDK"
-    echo "  --skip-gaia     Skip Gaia SDK"
+    echo "  --skip-lemonade Skip Lemonade Server"
     echo "  --skip-claude   Skip Claude Code"
     echo "  --status        Show current install status"
     echo "  -h, --help      Show this help"
@@ -61,12 +62,10 @@ usage() {
 # Step count calculated dynamically based on skip flags
 CURRENT_STEP=0
 calculate_steps() {
-    TOTAL_STEPS=4  # base + python + web UIs + wireguard (always run)
+    TOTAL_STEPS=4  # base + python + wireguard + dashboard (always run)
     $SKIP_ROCM     || TOTAL_STEPS=$((TOTAL_STEPS + 1))
     $SKIP_CADDY    || TOTAL_STEPS=$((TOTAL_STEPS + 1))
-    $SKIP_LLAMA    || TOTAL_STEPS=$((TOTAL_STEPS + 1))
     $SKIP_LEMONADE || TOTAL_STEPS=$((TOTAL_STEPS + 1))
-    $SKIP_GAIA     || TOTAL_STEPS=$((TOTAL_STEPS + 1))
     $SKIP_CLAUDE   || TOTAL_STEPS=$((TOTAL_STEPS + 1))
 }
 
@@ -152,28 +151,19 @@ check_status() {
         echo -e "  Caddy:    ${RED}not installed${NC}"
     fi
 
-    # vLLM ROCm
-    if [ -f "$HOME/vllm-rocm/bin/python3" ]; then
-        VER=$("$HOME/vllm-rocm/bin/python3" -c 'import vllm; print(vllm.__version__)' 2>/dev/null || echo "unknown")
-        echo -e "  vLLM ROCm: ${GREEN}installed${NC} — v$VER"
-    else
-        echo -e "  vLLM ROCm: ${RED}not installed${NC}"
-    fi
-
-    # Lemonade
+    # Lemonade (lemond)
     if command -v lemonade &>/dev/null; then
         VER=$(lemonade --version 2>/dev/null || echo "installed")
         echo -e "  Lemonade: ${GREEN}installed${NC} — $VER"
+        if systemctl is-active lemonade-server &>/dev/null; then
+            echo -e "            ${GREEN}lemond running${NC} on :13305"
+            # Show loaded models
+            lemonade list 2>/dev/null | head -10 || true
+        else
+            echo -e "            ${YELLOW}lemond not running${NC}"
+        fi
     else
         echo -e "  Lemonade: ${RED}not installed${NC}"
-    fi
-
-    # Gaia
-    if command -v gaia &>/dev/null || [ -f ""$HOME/gaia-env/bin/gaia"" ]; then
-        VER=$(gaia --version 2>/dev/null || "$HOME/gaia-env/bin/gaia" --version 2>/dev/null || echo "installed")
-        echo -e "  Gaia:     ${GREEN}installed${NC} — v$VER"
-    else
-        echo -e "  Gaia:     ${RED}not installed${NC}"
     fi
 
     # Claude Code
@@ -186,8 +176,8 @@ check_status() {
     # Services
     echo ""
     echo "  Services:"
-    for svc in caddy sshd vllm-server lemonade-server gaia-ui gaia; do
-        STATUS=$(systemctl is-enabled "$svc" 2>/dev/null || echo "missing")
+    for svc in caddy sshd lemonade-server halo-autoload; do
+        STATUS=$(systemctl is-enabled "$svc" 2>/dev/null || true); STATUS=${STATUS:-missing}
         ACTIVE=$(systemctl is-active "$svc" 2>/dev/null || true); ACTIVE=${ACTIVE:-inactive}
         if [ "$STATUS" = "enabled" ]; then
             echo -e "    $svc: ${GREEN}$STATUS${NC} ($ACTIVE)"
@@ -207,9 +197,7 @@ while [[ $# -gt 0 ]]; do
         --yes-all)     YES_ALL=true; shift ;;
         --skip-rocm)   SKIP_ROCM=true; shift ;;
         --skip-caddy)  SKIP_CADDY=true; shift ;;
-        --skip-llama)  SKIP_LLAMA=true; shift ;;
         --skip-lemonade) SKIP_LEMONADE=true; shift ;;
-        --skip-gaia)   SKIP_GAIA=true; shift ;;
         --skip-claude) SKIP_CLAUDE=true; shift ;;
         --status)      check_status ;;
         -h|--help)     usage ;;
@@ -221,7 +209,7 @@ done
 calculate_steps
 echo ""
 echo "╔══════════════════════════════════════╗"
-echo "║   Halo AI Core v${VERSION} — Installer    ║"
+echo "║   Halo AI Core v${VERSION} — Installer   ║"
 echo "║   Designed and built by the architect║"
 echo "╚══════════════════════════════════════╝"
 echo ""
@@ -267,7 +255,7 @@ fi
 # 1. BASE PACKAGES
 # ============================================================
 step "Base Packages"
-BASE_PKGS="base-devel git openssh networkmanager curl wget htop nano nodejs npm"
+BASE_PKGS="base-devel git openssh networkmanager curl wget htop nano nodejs npm uv"
 
 if $DRY_RUN; then
     info "Would install: $BASE_PKGS"
@@ -309,7 +297,6 @@ ROCM_ENV
         # Set CPU governor to performance for max throughput
         if command -v cpupower &>/dev/null; then
             sudo cpupower frequency-set -g performance >> "$LOG_FILE" 2>&1 || true
-            # Persist across reboots
             echo "governor='performance'" | sudo tee /etc/default/cpupower > /dev/null
             sudo systemctl enable cpupower >> "$LOG_FILE" 2>&1 || true
             log "CPU governor set to performance"
@@ -325,58 +312,54 @@ else
 fi
 
 # ============================================================
-# 3. CADDY
+# 3. CADDY (dashboard only — lemond handles all API routing)
 # ============================================================
 if ! $SKIP_CADDY; then
-    step "Caddy Reverse Proxy"
+    step "Caddy (Dashboard)"
 
     if $DRY_RUN; then
-        info "Would install: caddy"
+        info "Would install: caddy (dashboard on :80 only)"
     else
         sudo pacman -S --needed --noconfirm caddy >> "$LOG_FILE" 2>&1
-        sudo mkdir -p /etc/caddy/conf.d
-        # Clean stale configs from previous installs to prevent duplicates
-        sudo rm -f /etc/caddy/conf.d/*.caddy 2>/dev/null
 
-        sudo tee /etc/caddy/Caddyfile > /dev/null << 'CADDYFILE'
-# Halo AI Core — Caddy Reverse Proxy
+        # Clean stale configs from previous installs
+        sudo rm -f /etc/caddy/conf.d/*.caddy 2>/dev/null
+        sudo mkdir -p /etc/caddy/conf.d
+
+        # Caddy serves the dashboard on :80 — all API routing goes through lemond on :13305
+        if [ -f "$SCRIPT_DIR/dashboard/Caddyfile" ]; then
+            sudo cp "$SCRIPT_DIR/dashboard/Caddyfile" /etc/caddy/Caddyfile
+        else
+            sudo tee /etc/caddy/Caddyfile > /dev/null << 'CADDYFILE'
+# Halo AI Core — Caddy
 # "There is no spoon." — Neo
-# Drop configs in /etc/caddy/conf.d/*.caddy
+# Dashboard on :80 — all API routing through lemond :13305
+
+{
+    admin "unix//run/caddy/admin.socket"
+}
 
 :80 {
-    header Content-Type "text/html; charset=utf-8"
-    respond `<!DOCTYPE html>
-<html><head><title>halo-ai core</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:#0a0a0a;color:#e0e0e0;font-family:monospace;display:flex;align-items:center;justify-content:center;min-height:100vh}
-.box{text-align:center;max-width:600px;padding:2em}
-h1{font-size:2em;margin-bottom:0.3em;color:#00d4ff}
-.sub{margin-bottom:2em;color:#555;font-size:0.9em}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:0.8em;margin-bottom:1.5em}
-.btn{display:block;padding:1em 1.5em;background:#111;border:1px solid #333;border-radius:8px;color:#00d4ff;text-decoration:none;font-size:1.1em;font-family:monospace;transition:all 0.2s}
-.btn:hover{background:#1a1a1a;border-color:#00d4ff}
-.btn small{display:block;color:#555;font-size:0.75em;margin-top:0.3em}
-.full{grid-column:1/-1}
-small{display:block;margin-top:1.5em;color:#333}
-</style></head><body><div class="box">
-<h1>halo-ai core</h1>
-<p class="sub">lemonade + gaia + vllm — fully integrated</p>
-<div class="grid">
-<a class="btn" target="_blank" href="http://{http.request.host}:13306">lemonade<small>chat with llms — :13306</small></a>
-<a class="btn" target="_blank" href="http://{http.request.host}:4201">gaia agents<small>manage ai agents — :4201</small></a>
-<a class="btn" target="_blank" href="http://{http.request.host}:8081/v1/models">llama api<small>openai-compatible — :8081</small></a>
-<a class="btn" target="_blank" href="http://{http.request.host}:5001/docs">gaia api<small>agent api — :5001 → :5050</small></a>
-</div>
-<small>designed and built by the architect</small>
-</div></body></html>`
+    @local remote_ip 127.0.0.1 10.0.0.0/24 10.100.0.0/24
+
+    # Stats JSON (static file, updated every 5s)
+    handle /stats.json {
+        root * /srv/halo-dashboard
+        file_server
+        header Cache-Control "no-cache"
+    }
+
+    # Dashboard (static files)
+    root * /srv/halo-dashboard
+    file_server
 }
 
 import /etc/caddy/conf.d/*.caddy
 CADDYFILE
+        fi
 
         sudo systemctl enable --now caddy >> "$LOG_FILE" 2>&1
-        log "Caddy installed and running"
+        log "Caddy installed — dashboard on :80"
     fi
 else
     warn "Skipping Caddy"
@@ -422,160 +405,16 @@ else
     fi
 fi
 
-PYTHON_BIN="$HOME/.pyenv/versions/${PYTHON_VERSION}/bin/python3"
-
 # ============================================================
-# 5. VLLM-ROCM (portable — pre-built for AMD GPUs, no compile)
-# ============================================================
-if ! $SKIP_LLAMA; then
-    step "vLLM ROCm (pre-built)"
-
-    if $DRY_RUN; then
-        info "Would download portable vLLM + ROCm for this GPU"
-    else
-        VLLM_DIR="$HOME/vllm-rocm"
-
-        if [ -f "$VLLM_DIR/bin/python3" ]; then
-            log "vLLM ROCm already installed at $VLLM_DIR"
-        else
-            # Detect GPU architecture
-            GPU_ARCH="gfx1151"  # default: Strix Halo
-            if command -v rocminfo > /dev/null 2>&1; then
-                DETECTED=$(rocminfo 2>/dev/null | grep -oP 'gfx\d+' | head -1)
-                if [ -n "$DETECTED" ]; then
-                    GPU_ARCH="$DETECTED"
-                fi
-            fi
-            log "Detected GPU architecture: $GPU_ARCH"
-
-            # Map architecture to release tag
-            case "$GPU_ARCH" in
-                gfx1151) VLLM_TAG="vllm0.19.0-rocm7.12.0-gfx1151" ;;
-                gfx1150) VLLM_TAG="vllm0.19.0-rocm7.12.0-gfx1150" ;;
-                gfx1100|gfx1101|gfx1102|gfx1103) VLLM_TAG="vllm0.19.0-rocm7.12.0-gfx110X" ;;
-                gfx1200|gfx1201) VLLM_TAG="vllm0.19.0-rocm7.12.0-gfx120X" ;;
-                *)
-                    warn "No pre-built vLLM for $GPU_ARCH — falling back to gfx1151"
-                    VLLM_TAG="vllm0.19.0-rocm7.12.0-gfx1151"
-                    ;;
-            esac
-
-            log "Downloading vLLM ROCm ($VLLM_TAG)..."
-            VLLM_TMP=$(mktemp -d)
-            VLLM_REPO="lemonade-sdk/vllm-rocm"
-
-            # Get download URLs from GitHub API (no auth needed for public repos)
-            ASSET_URLS=$(curl -sL "https://api.github.com/repos/${VLLM_REPO}/releases/tags/${VLLM_TAG}" \
-                | grep -o '"browser_download_url": *"[^"]*"' \
-                | grep -o 'https://[^"]*')
-
-            if [ -z "$ASSET_URLS" ]; then
-                warn "Could not find vLLM release assets for $VLLM_TAG"
-                warn "Install manually: gh release download $VLLM_TAG -R $VLLM_REPO"
-            else
-                # Download all parts
-                (for url in $ASSET_URLS; do
-                    curl -sL -o "$VLLM_TMP/$(basename "$url")" "$url"
-                done) >> "$LOG_FILE" 2>&1 &
-                spinner $! "Downloading vLLM ROCm ($VLLM_TAG — this is ~3 GB)..."
-
-                log "Extracting vLLM ROCm..."
-                mkdir -p "$VLLM_DIR"
-                cat "$VLLM_TMP"/*.tar.gz | tar xzf - -C "$VLLM_DIR" >> "$LOG_FILE" 2>&1 &
-                spinner $! "Extracting vLLM ROCm..."
-            fi
-            rm -rf "$VLLM_TMP"
-
-            # Fix permissions on bundled binaries
-            chmod +x "$VLLM_DIR/bin/python3" 2>/dev/null || true
-            chmod +x "$VLLM_DIR/bin/vllm" 2>/dev/null || true
-            chmod +x "$VLLM_DIR/bin/vllm-server" 2>/dev/null || true
-
-            log "vLLM ROCm installed — $($VLLM_DIR/bin/python3 -c 'import vllm; print(vllm.__version__)' 2>/dev/null || echo 'unknown version')"
-        fi
-
-        # Systemd service for vLLM (optional — Lemonade is primary)
-        sudo tee /usr/lib/systemd/system/vllm-server.service > /dev/null << VLLM_SVC
-[Unit]
-Description=vLLM Inference Server (ROCm — optional, Lemonade is primary)
-After=network.target
-
-[Service]
-Type=simple
-User=${USER}
-Environment=HSA_OVERRIDE_GFX_VERSION=11.5.1
-ExecStart=${VLLM_DIR}/bin/python3 -m vllm.entrypoints.openai.api_server \\
-    --host 127.0.0.1 \\
-    --port 8080 \\
-    --dtype auto \\
-    --max-model-len 32768
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-VLLM_SVC
-
-        # Caddy routes — external-facing ports proxy to Lemonade (primary LLM backend)
-        sudo tee /etc/caddy/conf.d/llm-api.caddy > /dev/null << 'LLM_API_CADDY'
-:8081 {
-    @local remote_ip 127.0.0.1 10.0.0.0/24 10.100.0.0/24
-    handle @local {
-        reverse_proxy 127.0.0.1:13305
-    }
-    respond 403
-}
-LLM_API_CADDY
-        # Clean up old misnamed config
-        sudo rm -f /etc/caddy/conf.d/llama.caddy 2>/dev/null
-
-        sudo tee /etc/caddy/conf.d/lemonade-ui.caddy > /dev/null << 'LEM_CADDY'
-:13306 {
-    @local remote_ip 127.0.0.1 10.0.0.0/24 10.100.0.0/24
-    handle @local {
-        reverse_proxy localhost:13305
-    }
-    respond 403
-}
-LEM_CADDY
-
-        sudo tee /etc/caddy/conf.d/gaia-ui.caddy > /dev/null << 'GAIA_UI_CADDY'
-:4201 {
-    @local remote_ip 127.0.0.1 10.0.0.0/24 10.100.0.0/24
-    handle @local {
-        reverse_proxy localhost:4200
-    }
-    respond 403
-}
-GAIA_UI_CADDY
-
-        sudo tee /etc/caddy/conf.d/gaia-api.caddy > /dev/null << 'GAIA_API_CADDY'
-:5001 {
-    @local remote_ip 127.0.0.1 10.0.0.0/24 10.100.0.0/24
-    handle @local {
-        reverse_proxy localhost:5050
-    }
-    respond 403
-}
-GAIA_API_CADDY
-
-        sudo systemctl daemon-reload
-        sudo systemctl reload caddy >> "$LOG_FILE" 2>&1 || warn "Caddy reload failed — check /etc/caddy/conf.d/ for duplicates"
-
-        log "vLLM ROCm ready — start with: sudo systemctl start vllm-server"
-    fi
-else
-    warn "Skipping vLLM ROCm"
-fi
-
-# ============================================================
-# 6. LEMONADE SERVER (native AUR package)
+# 5. LEMONADE SERVER (lemond — the core, all services route through here)
 # ============================================================
 if ! $SKIP_LEMONADE; then
-    step "Lemonade Server"
+    step "Lemonade Server (lemond)"
 
     if $DRY_RUN; then
         info "Would install lemonade-server from AUR"
+        info "Would install backends: llamacpp:vulkan, whispercpp:vulkan, kokoro:cpu"
+        info "All API routing handled by lemond's built-in router on :13305"
     else
         if command -v lemonade &>/dev/null; then
             log "Lemonade already installed — $(lemonade --version 2>/dev/null || echo 'installed')"
@@ -589,9 +428,7 @@ if ! $SKIP_LEMONADE; then
             else
                 info "Installing yay (AUR helper)..."
                 YAY_TMPDIR=$(mktemp -d)
-                git clone https://aur.archlinux.org/yay.git "$YAY_TMPDIR/yay" >> "$LOG_FILE" 2>&1
-                cd "$YAY_TMPDIR/yay" && makepkg -si --noconfirm >> "$LOG_FILE" 2>&1
-                cd "$HOME"
+                (cd "$YAY_TMPDIR" && git clone https://aur.archlinux.org/yay.git yay >> "$LOG_FILE" 2>&1 && cd yay && makepkg -si --noconfirm >> "$LOG_FILE" 2>&1)
                 rm -rf "$YAY_TMPDIR"
                 AUR_HELPER="yay"
             fi
@@ -600,156 +437,75 @@ if ! $SKIP_LEMONADE; then
             spinner $! "Building lemonade-server from AUR (C++ native — this takes a minute)..."
         fi
 
+        # Fix libwebsockets soname mismatch (Arch updates .so.20 → .so.21, breaks lemond)
+        for SO_NEW in /usr/lib/libwebsockets.so.*; do
+            [ -f "$SO_NEW" ] || continue
+            SO_VER=$(basename "$SO_NEW" | grep -oP '\.\d+$' | tr -d '.')
+            if [ -n "$SO_VER" ] && [ ! -f /usr/lib/libwebsockets.so.20 ]; then
+                sudo ln -sf "$SO_NEW" /usr/lib/libwebsockets.so.20
+                log "Fixed libwebsockets soname: $(basename "$SO_NEW") → libwebsockets.so.20"
+                break
+            fi
+        done
+
         # Enable and start the daemon
         sudo systemctl daemon-reload
-        sudo systemctl enable --now lemond >> "$LOG_FILE" 2>&1 || \
-            sudo systemctl enable --now lemonade-server >> "$LOG_FILE" 2>&1 || true
-        # Wait for server to be ready
-        log "Waiting for Lemonade server to start..."
+        sudo systemctl enable --now lemonade-server >> "$LOG_FILE" 2>&1 || true
+
+        # Wait for lemond to be ready
+        log "Waiting for lemond to start..."
         for i in $(seq 1 30); do
             if lemonade status --json > /dev/null 2>&1; then break; fi
             sleep 1
         done
 
+        # Install backends through lemond's built-in router
+        if lemonade status --json > /dev/null 2>&1; then
+            log "Installing backends through lemond..."
+
+            lemonade backends install llamacpp:vulkan >> "$LOG_FILE" 2>&1 &
+            spinner $! "Installing llamacpp:vulkan backend..."
+
+            lemonade backends install kokoro:cpu >> "$LOG_FILE" 2>&1 &
+            spinner $! "Installing Kokoro TTS backend..."
+
+            lemonade backends install whispercpp:vulkan >> "$LOG_FILE" 2>&1 &
+            spinner $! "Installing Whisper STT backend (Vulkan)..."
+
+            # Pull voice models
+            lemonade pull kokoro-v1 >> "$LOG_FILE" 2>&1 &
+            spinner $! "Downloading Kokoro TTS model..."
+
+            lemonade pull Whisper-Large-v3-Turbo >> "$LOG_FILE" 2>&1 &
+            spinner $! "Downloading Whisper Large v3 Turbo (1.5 GB)..."
+
+            # Pull default NPU model (optional, non-fatal)
+            (lemonade pull gemma3-4b-FLM >> "$LOG_FILE" 2>&1 || \
+             lemonade pull user.gemma3-4b-FLM >> "$LOG_FILE" 2>&1 || true) &
+            spinner $! "Downloading Gemma3 4B for NPU (optional)..."
+
+            # Set default context size
+            lemonade config set ctx_size=32768 >> "$LOG_FILE" 2>&1
+
+            log "Backends installed — all routing through lemond on :13305"
+        else
+            warn "lemond not responding — backends will need manual install after reboot"
+            warn "Run: lemonade backends install llamacpp:vulkan && lemonade backends install kokoro:cpu && lemonade backends install whispercpp:vulkan"
+        fi
+
         VER=$(lemonade --version 2>/dev/null || echo "installed")
-        log "Lemonade Server $VER — binaries: lemonade (CLI), lemond (daemon)"
+        log "Lemonade Server $VER"
+        log "Built-in router on :13305 — OpenAI, Anthropic, Ollama compatible"
+        log "Web UI:        http://localhost:13305"
+        log "OpenAI API:    http://localhost:13305/v1/chat/completions"
         log "Anthropic API: http://localhost:13305/v1/messages"
-        log "OpenAI API:    http://localhost:13305/api/v1/chat/completions"
-        log "Ollama API:    http://localhost:13305/api/chat"
     fi
 else
     warn "Skipping Lemonade Server"
 fi
 
 # ============================================================
-# 7. GAIA SDK
-# ============================================================
-if ! $SKIP_GAIA; then
-    step "Gaia SDK"
-
-    if $DRY_RUN; then
-        info "Would install amd-gaia in ~/gaia-env"
-    else
-        if [ ! -d "$HOME/gaia" ]; then
-            git clone --depth 1 https://github.com/amd/gaia.git "$HOME/gaia" >> "$LOG_FILE" 2>&1
-        fi
-
-        if [ ! -d "$HOME/gaia-env" ]; then
-            "$PYTHON_BIN" -m venv "$HOME/gaia-env"
-        fi
-
-        "$HOME/gaia-env/bin/pip" install --upgrade pip >> "$LOG_FILE" 2>&1
-        cd "$HOME/gaia"
-        "$HOME/gaia-env/bin/pip" install -e . >> "$LOG_FILE" 2>&1 &
-        spinner $! "Installing Gaia SDK (includes PyTorch — grab a coffee)..."
-
-        # Gaia .env — wire to Lemonade as primary backend
-        install -m 600 /dev/null "$HOME/gaia/.env"
-        cat > "$HOME/gaia/.env" << GAIA_ENV
-# Halo AI Core — Gaia Integration
-# Primary: Lemonade server (manages models, llamacpp backend)
-LEMONADE_BASE_URL=http://localhost:13305/api/v1
-
-# MCP Server
-GAIA_MCP_HOST=localhost
-GAIA_MCP_PORT=8765
-
-# Agent routing model (loaded via Lemonade)
-AGENT_ROUTING_MODEL=Qwen3-Coder-30B-A3B-Instruct-GGUF
-GAIA_ENV
-
-        # Systemd service — Gaia API (OpenAI-compatible endpoint)
-        sudo tee /usr/lib/systemd/system/gaia.service > /dev/null << GAIA_SVC
-[Unit]
-Description=Gaia AI Agent Framework
-After=network.target lemonade-server.service
-Wants=lemonade-server.service
-
-[Service]
-Type=simple
-User=${USER}
-Environment=PATH=${HOME}/gaia-env/bin:/usr/local/bin:/opt/rocm/bin:/usr/bin
-Environment=ROCBLAS_USE_HIPBLASLT=1
-Environment=HSA_OVERRIDE_GFX_VERSION=11.5.1
-Environment=LEMONADE_BASE_URL=http://localhost:13305/api/v1
-WorkingDirectory=${HOME}/gaia
-ExecStart=${HOME}/gaia-env/bin/gaia api start --host 127.0.0.1 --port 5050 --no-lemonade-check
-Restart=on-failure
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-GAIA_SVC
-
-        sudo systemctl daemon-reload
-        sudo systemctl enable gaia >> "$LOG_FILE" 2>&1
-
-        VER=$(""$HOME/gaia-env/bin/gaia"" --version 2>/dev/null || echo "unknown")
-        log "Gaia SDK v$VER installed"
-        log "Gaia .env created — LEMONADE_BASE_URL=http://localhost:13305/api/v1"
-    fi
-else
-    warn "Skipping Gaia SDK"
-fi
-
-# ============================================================
-# 8. WEB UIs
-# ============================================================
-step "Web UIs"
-
-if $DRY_RUN; then
-    info "Would configure Lemonade UI (port 13305) and Gaia Agent UI (port 4200)"
-else
-    # Lemonade UI is handled by lemond (native AUR package)
-    # Clean up old venv-based services from previous installs
-    sudo systemctl disable lemonade lemonade-ui >> "$LOG_FILE" 2>&1 || true
-    sudo rm -f /usr/lib/systemd/system/lemonade.service 2>/dev/null
-    sudo rm -f /usr/lib/systemd/system/lemonade-ui.service 2>/dev/null
-
-    # Gaia Agent UI
-    npm install -g --ignore-scripts --prefix "$HOME/.local" @amd-gaia/agent-ui@latest >> "$LOG_FILE" 2>&1
-
-    # Find gaia-ui binary — npm global bin location varies
-    GAIA_UI_BIN=$(command -v gaia-ui 2>/dev/null || npm root -g 2>/dev/null | sed 's|/lib/node_modules|/bin/gaia-ui|' || echo "/usr/local/bin/gaia-ui")
-
-    sudo tee /usr/lib/systemd/system/gaia-ui.service > /dev/null << GAIA_UI_SVC
-[Unit]
-Description=Gaia Agent Web UI
-After=network.target lemonade-server.service
-Wants=lemonade-server.service
-
-[Service]
-Type=simple
-User=${USER}
-Environment=PATH=${HOME}/gaia-env/bin:/usr/local/bin:/opt/rocm/bin:/usr/bin:/usr/lib/node_modules/.bin
-Environment=NODE_PATH=/usr/lib/node_modules
-Environment=ROCBLAS_USE_HIPBLASLT=1
-Environment=HSA_OVERRIDE_GFX_VERSION=11.5.1
-Environment=LEMONADE_BASE_URL=http://localhost:13305/api/v1
-WorkingDirectory=${HOME}/gaia
-ExecStart=${GAIA_UI_BIN} --port 4200
-Restart=on-failure
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-GAIA_UI_SVC
-
-    sudo systemctl daemon-reload
-    sudo systemctl enable gaia-ui >> "$LOG_FILE" 2>&1
-    sudo systemctl reload caddy >> "$LOG_FILE" 2>&1 || warn "Caddy reload failed — check /etc/caddy/conf.d/ for duplicates"
-
-    # Install the LLM backend switch script
-    sudo cp "$SCRIPT_DIR/halo-llm-switch.sh" /usr/local/bin/halo-llm-switch
-    sudo chmod +x /usr/local/bin/halo-llm-switch
-
-    log "Lemonade UI on :13305 — managed by lemond (native service)"
-    log "Gaia Agent UI on :4200 — Agent management"
-    log "Switch backends: halo-llm-switch [lemonade|llama|status]"
-fi
-
-# ============================================================
-# 9. CLAUDE CODE
+# 6. CLAUDE CODE (via Lemonade)
 # ============================================================
 if ! $SKIP_CLAUDE; then
     step "Claude Code (via Lemonade)"
@@ -772,10 +528,9 @@ if ! $SKIP_CLAUDE; then
 
         # Verify lemonade launch claude is available
         if command -v lemonade &>/dev/null; then
-            log "Claude Code can be launched via: lemonade launch claude"
-            log "Or with a model: lemonade launch claude -m <model-name>"
+            log "Launch with: lemonade launch claude -m <model-name>"
         else
-            warn "Lemonade CLI not found — install Lemonade Server first for local model routing"
+            warn "Lemonade CLI not found — install Lemonade Server first"
         fi
     fi
 else
@@ -783,7 +538,7 @@ else
 fi
 
 # ============================================================
-# WIREGUARD — Remote Access via QR Code
+# 7. WIREGUARD — Remote Access via QR Code
 # ============================================================
 step "WireGuard VPN"
 
@@ -810,21 +565,15 @@ else
             warn "Could not detect default network interface — skipping WireGuard"
             warn "Set up WireGuard manually: https://wiki.archlinux.org/title/WireGuard"
         else
-        # Try public IP first (for remote VPN access), fall back to LAN IP
-        LAN_IP=$(ip -o -4 addr show "$SERVER_IFACE" | awk '{print $4}' | cut -d/ -f1 | head -1)
-        SERVER_IP=$(curl -4 -s --max-time 5 https://ifconfig.me 2>/dev/null || echo "")
-        # Validate IPv4 format — fall back to LAN if garbage
-        if ! [[ "$SERVER_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            # Use LAN IP for WireGuard endpoint (no external IP lookups — privacy first)
+            LAN_IP=$(ip -o -4 addr show "$SERVER_IFACE" | awk '{print $4}' | cut -d/ -f1 | head -1)
             SERVER_IP="$LAN_IP"
-        fi
-        if [ "$SERVER_IP" = "$LAN_IP" ]; then
-            warn "Could not detect public IP — WireGuard Endpoint set to LAN IP ($LAN_IP)"
+            warn "WireGuard Endpoint set to LAN IP ($LAN_IP)"
             warn "For remote access, update Endpoint in /etc/wireguard/client1.conf with your public IP or DDNS"
-        fi
 
-        WG_TMP=$(mktemp)
-        chmod 600 "$WG_TMP"
-        cat > "$WG_TMP" << WG_SRV
+            WG_TMP=$(mktemp)
+            chmod 600 "$WG_TMP"
+            cat > "$WG_TMP" << WG_SRV
 [Interface]
 Address = 10.100.0.1/24
 ListenPort = 51820
@@ -836,12 +585,12 @@ PostDown = nft delete table inet wg-nat
 PublicKey = $CLIENT_PUB
 AllowedIPs = 10.100.0.2/32
 WG_SRV
-        sudo install -m 600 "$WG_TMP" "$WG_CONF"
-        rm -f "$WG_TMP"
+            sudo install -m 600 "$WG_TMP" "$WG_CONF"
+            rm -f "$WG_TMP"
 
-        CLIENT_CONF=$(mktemp)
-        chmod 600 "$CLIENT_CONF"
-        cat > "$CLIENT_CONF" << WG_CLIENT
+            CLIENT_CONF=$(mktemp)
+            chmod 600 "$CLIENT_CONF"
+            cat > "$CLIENT_CONF" << WG_CLIENT
 [Interface]
 PrivateKey = $CLIENT_PRIV
 Address = 10.100.0.2/24
@@ -854,14 +603,14 @@ AllowedIPs = 10.100.0.0/24
 PersistentKeepalive = 25
 WG_CLIENT
 
-        sudo sysctl -w net.ipv4.ip_forward=1 >> "$LOG_FILE" 2>&1
-        echo "net.ipv4.ip_forward=1" | sudo tee /etc/sysctl.d/99-wireguard.conf >> "$LOG_FILE" 2>&1
-        sudo systemctl enable --now wg-quick@wg0 >> "$LOG_FILE" 2>&1
+            sudo sysctl -w net.ipv4.ip_forward=1 >> "$LOG_FILE" 2>&1 || true
+            echo "net.ipv4.ip_forward=1" | sudo tee /etc/sysctl.d/99-wireguard.conf >> "$LOG_FILE" 2>&1
+            sudo systemctl enable --now wg-quick@wg0 >> "$LOG_FILE" 2>&1 || true
 
-        sudo install -m 600 "$CLIENT_CONF" /etc/wireguard/client1.conf
-        rm -f "$CLIENT_CONF"
-        rm -rf "$WG_KEY_DIR"
-        log "WireGuard VPN configured on 10.100.0.1:51820"
+            sudo install -m 600 "$CLIENT_CONF" /etc/wireguard/client1.conf
+            rm -f "$CLIENT_CONF"
+            rm -rf "$WG_KEY_DIR"
+            log "WireGuard VPN configured on 10.100.0.1:51820"
         fi  # SERVER_IFACE validation
     else
         log "WireGuard already configured at $WG_CONF"
@@ -869,41 +618,13 @@ WG_CLIENT
 fi
 
 # ============================================================
-# 11. VOICE BACKENDS + DASHBOARD + AUTO-LOAD
+# 8. DASHBOARD & AUTO-LOAD
 # ============================================================
-if ! $DRY_RUN; then
-    step "Voice, Dashboard & Auto-load"
-
-    # Check if Lemonade server is running
-    if lemonade status --json > /dev/null 2>&1; then
-        # Install voice backends
-        log "Installing voice backends..."
-        lemonade backends install kokoro:cpu >> "$LOG_FILE" 2>&1 &
-        spinner $! "Installing Kokoro TTS..."
-        lemonade backends install whispercpp:vulkan >> "$LOG_FILE" 2>&1 &
-        spinner $! "Installing Whisper STT (Vulkan)..."
-
-        # Pull voice models
-        log "Downloading voice models..."
-        lemonade pull kokoro-v1 >> "$LOG_FILE" 2>&1 &
-        spinner $! "Downloading Kokoro TTS model..."
-        lemonade pull Whisper-Large-v3-Turbo >> "$LOG_FILE" 2>&1 &
-        spinner $! "Downloading Whisper Large v3 Turbo (1.5 GB)..."
-
-        # Pull default NPU model for agents
-        lemonade pull gemma3-4b-FLM >> "$LOG_FILE" 2>&1 &
-        spinner $! "Downloading Gemma3 4B for NPU..."
-
-        # Set default context size to 32768 (Gaia requires it)
-        lemonade config set ctx_size=32768 >> "$LOG_FILE" 2>&1
-    else
-        warn "Lemonade server not running — skipping voice backends & model downloads"
-        warn "Run these manually after reboot: lemonade backends install kokoro:cpu && lemonade backends install whispercpp:vulkan"
-    fi
-    log "Default context size set to 32768"
-
-    log "Voice backends installed: Kokoro TTS + Whisper STT"
-
+step "Dashboard & Auto-load"
+if $DRY_RUN; then
+    info "Would deploy dashboard on :80"
+    info "Would create auto-load service for voice + NPU models on boot"
+else
     # Install dashboard
     log "Installing dashboard..."
     sudo mkdir -p /srv/halo-dashboard
@@ -936,44 +657,18 @@ RestartSec=3
 [Install]
 WantedBy=default.target
 STATSVC
-    systemctl --user daemon-reload
+    systemctl --user daemon-reload 2>/dev/null || true
     systemctl --user enable --now halo-stats.service >> "$LOG_FILE" 2>&1 || true
     log "Stats server installed on :5090"
 
-    # Configure Caddy with reverse proxies
-    if [ -f "$SCRIPT_DIR/dashboard/Caddyfile" ]; then
-        sudo cp "$SCRIPT_DIR/dashboard/Caddyfile" /etc/caddy/Caddyfile
-    else
-        sudo tee /etc/caddy/Caddyfile > /dev/null << 'CADDY'
-{
-	admin "unix//run/caddy/admin.socket"
-}
+    # Reload Caddy with dashboard config
+    sudo systemctl reload caddy >> "$LOG_FILE" 2>&1 || sudo systemctl restart caddy >> "$LOG_FILE" 2>&1 || true
+    log "Dashboard deployed on :80"
 
-:80 {
-	handle /api/* {
-		reverse_proxy 127.0.0.1:5090
-		uri strip_prefix /api
-	}
-	root * /srv/halo-dashboard
-	file_server
-}
-
-:13306 {
-	reverse_proxy 127.0.0.1:13305
-}
-
-:4201 {
-	reverse_proxy 127.0.0.1:4200
-}
-CADDY
-    fi
-    sudo systemctl restart caddy >> "$LOG_FILE" 2>&1
-    log "Dashboard deployed on :80 — Stats :5090 — Lemonade :13306 — Gaia :4201"
-
-    # Create auto-load script
+    # Create auto-load script (loads voice + NPU models through lemond on boot)
     sudo tee /usr/local/bin/halo-autoload.sh > /dev/null << 'AUTOLOAD'
 #!/bin/bash
-# halo-ai core — auto-load default models on boot
+# halo-ai core — auto-load default models on boot (all through lemond)
 # "i'll be back." — the terminator
 
 LOG="$HOME/.local/log/halo-autoload.log"
@@ -981,9 +676,9 @@ mkdir -p "$(dirname "$LOG")"
 
 log() { echo "[$(date '+%H:%M:%S')] $1" >> "$LOG"; }
 
-log "Auto-loading default models..."
+log "Auto-loading default models through lemond..."
 
-# Wait for lemonade to be ready
+# Wait for lemond to be ready
 for i in $(seq 1 30); do
     if lemonade status --json 2>/dev/null | grep -q '"version"'; then
         break
@@ -991,19 +686,20 @@ for i in $(seq 1 30); do
     sleep 2
 done
 
-# Load whisper (STT)
+# Load whisper (STT) through lemond
 log "Loading Whisper Large v3 Turbo..."
 lemonade load Whisper-Large-v3-Turbo --whispercpp vulkan >> "$LOG" 2>&1 || \
     log "Whisper load failed (non-critical)"
 
-# Load kokoro (TTS)
+# Load kokoro (TTS) through lemond
 log "Loading Kokoro v1..."
 lemonade load kokoro-v1 >> "$LOG" 2>&1 || \
     log "Kokoro load failed (non-critical)"
 
-# Load default LLM on NPU (agents)
+# Load default LLM on NPU (agents) through lemond
 log "Loading Gemma3 4B on NPU..."
 lemonade load gemma3-4b-FLM --ctx-size 32768 >> "$LOG" 2>&1 || \
+  lemonade load user.gemma3-4b-FLM --ctx-size 32768 >> "$LOG" 2>&1 || \
     log "NPU model load failed (non-critical)"
 
 log "Auto-load complete."
@@ -1011,15 +707,15 @@ AUTOLOAD
     sudo chmod +x /usr/local/bin/halo-autoload.sh
 
     # Create auto-load systemd service
-    sudo tee /usr/lib/systemd/system/halo-autoload.service > /dev/null << 'SVCUNIT'
+    sudo tee /usr/lib/systemd/system/halo-autoload.service > /dev/null << SVCUNIT
 [Unit]
-Description=Halo AI Core — Auto-load default models
+Description=Halo AI Core — Auto-load default models through lemond
 After=lemonade-server.service
 Wants=lemonade-server.service
 
 [Service]
 Type=oneshot
-User=bcloud
+User=${USER}
 RemainAfterExit=yes
 ExecStartPre=/bin/sleep 5
 ExecStart=/usr/local/bin/halo-autoload.sh
@@ -1029,11 +725,28 @@ WantedBy=multi-user.target
 SVCUNIT
     sudo systemctl daemon-reload
     sudo systemctl enable halo-autoload >> "$LOG_FILE" 2>&1
-    log "Auto-load service enabled — voice + NPU models load on every boot"
-else
-    info "Would install voice backends (Kokoro TTS + Whisper STT)"
-    info "Would deploy dashboard on :80 with Caddy reverse proxies"
-    info "Would create auto-load service for default models on boot"
+    log "Auto-load service enabled — voice + NPU models load through lemond on every boot"
+fi
+
+# ============================================================
+# CLEANUP — remove stale services from previous installs
+# ============================================================
+if ! $DRY_RUN; then
+    # Remove old services that are now handled by lemond
+    for old_svc in vllm-server lemonade lemonade-ui gaia gaia-ui; do
+        if systemctl is-enabled "$old_svc" &>/dev/null; then
+            sudo systemctl disable --now "$old_svc" >> "$LOG_FILE" 2>&1 || true
+            log "Disabled stale service: $old_svc (now handled by lemond)"
+        fi
+        sudo rm -f "/usr/lib/systemd/system/${old_svc}.service" 2>/dev/null
+    done
+    # Remove old Caddy conf.d proxies (lemond handles routing)
+    sudo rm -f /etc/caddy/conf.d/llm-api.caddy 2>/dev/null
+    sudo rm -f /etc/caddy/conf.d/lemonade-ui.caddy 2>/dev/null
+    sudo rm -f /etc/caddy/conf.d/gaia-ui.caddy 2>/dev/null
+    sudo rm -f /etc/caddy/conf.d/gaia-api.caddy 2>/dev/null
+    sudo rm -f /etc/caddy/conf.d/llama.caddy 2>/dev/null
+    sudo systemctl daemon-reload
 fi
 
 # ============================================================
@@ -1047,20 +760,23 @@ echo "╚═══════════════════════�
 echo ""
 echo "  \"There is no spoon.\" — The Matrix"
 echo ""
-echo "  ── YOUR UIs ──────────────────────────────────"
+echo "  ── EVERYTHING RUNS THROUGH LEMOND ──────────────"
 echo ""
-echo "  Lemonade (chat with LLMs):"
-echo "    Local:  http://localhost:13305"
-echo "    SSH:    ssh -L 13305:localhost:13305 $HOSTNAME"
-echo "            then open http://localhost:13305"
+echo "  Lemonade (web UI + all APIs):"
+echo "    http://localhost:13305"
+echo "    SSH: ssh -L 13305:localhost:13305 $HOSTNAME"
 echo ""
-echo "  Gaia (manage agents):"
-echo "    Local:  http://localhost:4200"
-echo "    SSH:    ssh -L 4200:localhost:4200 $HOSTNAME"
-echo "            then open http://localhost:4200"
+echo "  Built-in router on :13305 serves:"
+echo "    OpenAI API:    /v1/chat/completions"
+echo "    Anthropic API: /v1/messages"
+echo "    Ollama API:    /api/chat"
+echo "    Web UI:        / (browser)"
 echo ""
 echo "  Claude Code (local AI coding agent):"
 echo "    lemonade launch claude -m <model-name>"
+echo ""
+echo "  Dashboard:"
+echo "    http://localhost:80"
 echo ""
 
 if [ -f /etc/wireguard/wg0.conf ]; then
@@ -1068,7 +784,7 @@ echo "  ── REMOTE ACCESS (WireGuard VPN) ───────────�
 echo ""
 echo "  Phone VPN IP: 10.100.0.2"
 echo "  Lemonade:     http://10.100.0.1:13305"
-echo "  Gaia:         http://10.100.0.1:4200"
+echo "  Dashboard:    http://10.100.0.1"
 echo "  Show QR:      qrencode -t ansiutf8 < /etc/wireguard/client1.conf"
 echo ""
 fi
@@ -1084,16 +800,11 @@ echo "  They will NOT run until you reboot."
 echo ""
 echo "  ── NEXT STEPS (after reboot) ──────────────────"
 echo ""
-echo "  1. Load a model in Lemonade UI"
-echo "  2. Start chatting"
-echo "  3. Launch Claude Code with local models:"
+echo "  1. Open http://localhost:13305 — load a model, start chatting"
+echo "  2. Launch Claude Code with local models:"
 echo "     lemonade launch claude -m <model-name>"
-echo "  4. Deploy core agents (optional):"
-echo "     https://github.com/stampby/halo-ai-core/blob/main/docs/wiki/Core-Agents.md"
-echo ""
-echo "  ── VERIFY ────────────────────────────────────"
-echo ""
-echo "  ./install.sh --status"
+echo "  3. Check status:"
+echo "     ./install.sh --status"
 echo ""
 
 log "Installation complete."

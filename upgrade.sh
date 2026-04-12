@@ -8,7 +8,7 @@
 # Upgrades a stable halo-ai-core install with:
 #   - Linux 7.0-rc kernel (NPU/XDNA2 support)
 #   - Zen 5 AVX-512 + Polly compiler optimizations
-#   - rocWMMA flash attention rebuild
+#   - llama.cpp Vulkan rebuild with Zen 5 flags (h/t u/Look_0ver_There)
 #   - Speculative decoding config
 #
 # REQUIRES: a working halo-ai-core install + btrfs
@@ -195,43 +195,22 @@ fi
 # 3. REBUILD LLAMA.CPP WITH ZEN 5 FLAGS
 # ============================================================
 if ! $SKIP_REBUILD; then
-    step "Rebuild llama.cpp (Zen 5 + AVX-512 + Polly)"
+    step "Rebuild llama.cpp (Vulkan + Zen 5 AVX-512)"
 
     if $DRY_RUN; then
-        info "Would rebuild llama.cpp with zen 5 optimizations"
+        info "Would rebuild llama.cpp Vulkan only with Zen 5 optimizations"
+        info "(h/t u/Look_0ver_There — Vulkan only, no HIP)"
     else
-        export PATH=$PATH:/opt/rocm/bin
-        export HIP_PATH=/opt/rocm
-        export ROCM_PATH=/opt/rocm
-
         cd "$HOME/llama.cpp"
         git pull >> "$LOG_FILE" 2>&1
 
-        # Apply gfx1151 MMQ patch (same as stable)
-        if grep -q 'mmq_x = 64' ggml/src/ggml-cuda/mmq.cu 2>/dev/null; then
-            sed -i 's/mmq_x = 64/mmq_x = 48/g' ggml/src/ggml-cuda/mmq.cu
-            sed -i 's/mmq_y = 128/mmq_y = 64/g' ggml/src/ggml-cuda/mmq.cu
-            sed -i 's/nwarps = 8/nwarps = 4/g' ggml/src/ggml-cuda/mmq.cu
-            log "MMQ kernel parameters patched"
-        fi
-
-        # Fast math intrinsics — replace standalone expf() with __expf()
-        # IMPORTANT: only match expf NOT already prefixed with underscore
-        # the naive sed 's/expf/__expf/g' will double-replace __expf → ____expf
-        if grep -q '[^_]expf(' ggml/src/ggml-cuda/fattn-common.cuh 2>/dev/null; then
-            git checkout -- ggml/src/ggml-cuda/fattn-common.cuh 2>/dev/null || true
-            sed -i 's/\([^_]\)expf(\([^)]*\))/\1__expf(\2)/g' ggml/src/ggml-cuda/fattn-common.cuh 2>/dev/null || true
-            log "Fast math intrinsics applied"
-        fi
-
         rm -rf build
         cmake -B build \
-            -DGGML_HIP=ON \
             -DGGML_VULKAN=ON \
-            -DGGML_HIP_ROCWMMA_FATTN=ON \
-            -DAMDGPU_TARGETS=gfx1151 \
+            -DGGML_HIP=OFF \
+            -DGGML_CUDA=OFF \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_HIP_COMPILER=/opt/rocm/bin/amdclang++ \
+            -DLLAMA_CURL=ON \
             -DCMAKE_C_FLAGS="-march=znver5 -mtune=znver5 -O3 -mavx512f -mavx512vl -mavx512bw -mavx512dq" \
             -DCMAKE_CXX_FLAGS="-march=znver5 -mtune=znver5 -O3 -mavx512f -mavx512vl -mavx512bw -mavx512dq" \
             >> "$LOG_FILE" 2>&1
@@ -258,7 +237,7 @@ if ! $SKIP_REBUILD; then
         sudo cp "$BIN_DIR/llama-bench" /usr/local/bin/ 2>/dev/null || \
             sudo cp "$(find build -name 'llama-bench' -type f 2>/dev/null | head -1)" /usr/local/bin/ 2>/dev/null || true
 
-        log "llama.cpp rebuilt with Zen 5 AVX-512 + Polly optimizations"
+        log "llama.cpp rebuilt — Vulkan only + Zen 5 AVX-512 (h/t u/Look_0ver_There)"
     fi
 else
     warn "Skipping llama.cpp rebuild"
@@ -343,9 +322,9 @@ echo -e "${RED}║   Bleeding Edge — Upgrade Complete       ║${NC}"
 echo -e "${RED}╚══════════════════════════════════════════╝${NC}"
 echo ""
 echo "  what changed:"
-echo "    → llama.cpp rebuilt with Zen 5 AVX-512 + Polly"
-echo "    → rocWMMA flash attention enabled"
-echo "    → gfx1151 MMQ kernel patched"
+echo "    → llama.cpp rebuilt — Vulkan only + Zen 5 AVX-512 (h/t u/Look_0ver_There)"
+echo "    → kernel 7.0-rc for NPU/XDNA2 support"
+echo "    → NPU configured for FLM offload"
 echo ""
 
 KERNEL_VER=$(uname -r)
