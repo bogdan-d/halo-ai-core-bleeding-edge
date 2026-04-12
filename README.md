@@ -250,7 +250,7 @@ you're back to stable in 30 seconds. that's why we snapshot first.
 |-------------|--------|
 | Vulkan-only for llama.cpp (community catch) | u/Look_0ver_There |
 | Zen 5 AVX-512 compiler flags | [paudley/ai-notes](https://github.com/paudley/ai-notes) |
-| Strix Halo toolboxes + 150 benchmarks | [kyuz0/amd-strix-halo-toolboxes](https://github.com/kyuz0/amd-strix-halo-toolboxes) |
+| Strix Halo toolboxes + 150 benchmarks (25 models, 3 backends, 12 hrs) | [kyuz0/amd-strix-halo-toolboxes](https://github.com/kyuz0/amd-strix-halo-toolboxes) — [spreadsheet](https://docs.google.com/spreadsheets/d/1NzZC4JShGluwH2fdjlMbZ2ke99AcTctUnM7rG12_cYE/) — [llama.cpp discussion](https://github.com/ggml-org/llama.cpp/discussions/20969#discussioncomment-16528183) |
 | XDNA2 NPU driver (amdxdna) | AMD Linux kernel team |
 | Lemonade SDK + FLM backend | [TurnkeyML / FastFlow FM](https://github.com/lemonade-sdk/lemonade) |
 | Bonsai 1-bit models | [Prism ML / Mintplex Labs](https://huggingface.co/prism-ml) |
